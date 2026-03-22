@@ -1,0 +1,125 @@
+// ============================================================================
+// KQL Cost Analysis Queries for Demo
+// Run these in the Azure Portal > Log Analytics workspace > Logs
+// ============================================================================
+
+// ============================================================================
+// QUERY 1: Billable Data Volume by Table (Last 24h)
+// Shows which tables cost the most — identify candidates for Basic plan
+// ============================================================================
+Usage
+| where TimeGenerated > ago(1d)
+| where IsBillable == true
+| summarize
+    IngestedGB = round(sum(Quantity) / 1000, 3),
+    RecordCount = sum(QuantityUnit == "MBytes" ? 1 : 0)
+    by DataType
+| sort by IngestedGB desc
+| extend CostEstimateUSD = round(IngestedGB * 2.76, 2)  // ~$2.76/GB pay-as-you-go
+| project DataType, IngestedGB, CostEstimateUSD
+
+
+// ============================================================================
+// QUERY 2: Daily Ingestion Trend (Last 30 days)
+// Spot anomalies and trends — are you drifting toward a higher tier?
+// ============================================================================
+Usage
+| where TimeGenerated > ago(30d)
+| where IsBillable == true
+| summarize DailyGB = round(sum(Quantity) / 1000, 2) by bin(TimeGenerated, 1d)
+| render timechart
+
+
+// ============================================================================
+// QUERY 3: DCR Transformation Savings Estimate
+// Compare raw vs. filtered ingestion for custom tables
+// ============================================================================
+AppEvents_CL
+| where TimeGenerated > ago(1d)
+| summarize
+    IngestedRecords = count(),
+    AvgRecordSizeBytes = avg(estimate_data_size(*))
+| extend
+    IngestedMB = round(IngestedRecords * AvgRecordSizeBytes / 1048576, 2),
+    Explanation = "These records PASSED the DCR filter (Warning/Error/Critical only)"
+
+
+// ============================================================================
+// QUERY 4: Analytics vs Basic vs Low-touch stream comparison
+// Shows ingestion side-by-side for all three demo streams
+// ============================================================================
+Usage
+| where TimeGenerated > ago(1d)
+| where DataType in ("AppEvents_CL", "DebugTraces_CL", "AuxSignals_CL", "AuxPortal_CL")
+| summarize IngestedMB = round(sum(Quantity), 2) by DataType
+| extend
+    TablePlan = case(
+        DataType == "AppEvents_CL", "Analytics ($2.76/GB)",
+        DataType == "DebugTraces_CL", "Basic ($0.88/GB)",
+        DataType == "AuxSignals_CL", "Basic low-touch stream (Auxiliary-candidate)",
+        DataType == "AuxPortal_CL", "Auxiliary (minimal ingest cost)",
+        "Unknown"
+    ),
+    MonthlyCostEstimate = round(
+        case(
+            DataType == "AppEvents_CL", IngestedMB / 1000 * 2.76 * 30,
+            DataType == "DebugTraces_CL", IngestedMB / 1000 * 0.88 * 30,
+            DataType == "AuxSignals_CL", IngestedMB / 1000 * 0.88 * 30,
+            DataType == "AuxPortal_CL", IngestedMB / 1000 * 0.50 * 30,
+            0
+        ), 2)
+
+
+// ============================================================================
+// QUERY 5: Retention Tier Overview
+// Show data across interactive vs archive retention
+// ============================================================================
+Usage
+| where TimeGenerated > ago(30d)
+| where IsBillable == true
+| summarize IngestedGB = round(sum(Quantity) / 1000, 2)
+| extend
+    InteractiveRetentionDays = 90,
+    ArchiveRetentionDays = 365,
+    InteractiveCostPerGBMonth = 0.023,
+    ArchiveCostPerGBMonth = 0.005,
+    MonthlyInteractiveCost = round(IngestedGB * 0.023, 2),
+    MonthlyArchiveCost = round(IngestedGB * 0.005, 2),
+    MonthlySavingsFromArchive = round(IngestedGB * (0.023 - 0.005), 2)
+
+
+// ============================================================================
+// QUERY 6: Workspace Ingestion vs Daily Cap
+// Monitor how close you are to hitting the daily cap
+// ============================================================================
+Usage
+| where TimeGenerated > ago(1d)
+| where IsBillable == true
+| summarize IngestedGB = round(sum(Quantity) / 1000, 3)
+| extend
+    DailyCapGB = 5,
+    PercentUsed = round(IngestedGB / 5 * 100, 1),
+    Status = iff(IngestedGB / 5 > 0.9, "WARN_NEAR_CAP", "OK")
+
+
+// ============================================================================
+// QUERY 7: Commitment Tier Recommendation
+// Analyze if a commitment tier would save money
+// ============================================================================
+Usage
+| where TimeGenerated > ago(30d)
+| where IsBillable == true
+| summarize DailyGB = sum(Quantity) / 1000 by bin(TimeGenerated, 1d)
+| summarize
+    AvgDailyGB = round(avg(DailyGB), 1),
+    P95DailyGB = round(percentile(DailyGB, 95), 1),
+    MaxDailyGB = round(max(DailyGB), 1)
+| extend
+    PayAsYouGoCostMonth = round(AvgDailyGB * 30 * 2.76, 0),
+    Tier100CostMonth = round(100 * 30 * 1.96, 0),    // ~$1.96/GB at 100 tier
+    Tier200CostMonth = round(200 * 30 * 1.86, 0),    // ~$1.86/GB at 200 tier
+    Recommendation = case(
+        AvgDailyGB >= 200, "Consider 200 GB/day commitment tier",
+        AvgDailyGB >= 100, "Consider 100 GB/day commitment tier",
+        "Stay on Pay-as-you-go"
+    )

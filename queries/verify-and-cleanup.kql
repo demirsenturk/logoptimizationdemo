@@ -1,0 +1,23 @@
+// ============================================================================
+// Cleanup / Teardown Queries
+// Run these to verify and clean up after the demo
+// ============================================================================
+
+// Verify custom table data was ingested
+AppEvents_CL
+| take 10
+
+DebugTraces_CL
+| take 10
+
+// Check data export status
+_LogOperation
+| where Category == "DataExport"
+| where TimeGenerated > ago(1h)
+| project TimeGenerated, Detail, Category
+
+// Check workspace operations
+_LogOperation
+| where TimeGenerated > ago(1d)
+| summarize count() by Category, Detail
+| sort by count_ desc

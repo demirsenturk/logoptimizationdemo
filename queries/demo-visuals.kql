@@ -1,0 +1,71 @@
+// ============================================================================
+// Demo Visual Deck - Run each query separately in Log Analytics and click Charts
+// ============================================================================
+
+// VISUAL 1: Cost by table (last 24h) - column chart
+Usage
+| where TimeGenerated > ago(1d)
+| where IsBillable == true
+| where DataType in ("AppEvents_CL", "DebugTraces_CL", "AuxSignals_CL", "AuxPortal_CL")
+| summarize IngestedMB = round(sum(Quantity), 2) by DataType
+| order by IngestedMB desc
+| render columnchart
+
+// VISUAL 2: Ingestion trend (last 24h, 30-min bins) - time chart
+Usage
+| where TimeGenerated > ago(24h)
+| where IsBillable == true
+| summarize IngestedMB = round(sum(Quantity), 2) by bin(TimeGenerated, 30m)
+| render timechart
+
+// VISUAL 3: Severity mix after DCR filtering - pie chart
+AppEvents_CL
+| where TimeGenerated > ago(24h)
+| summarize Count = count() by Severity
+| order by Count desc
+| render piechart
+
+// VISUAL 4: Event volume by stream - bar chart
+let appCount = toscalar(AppEvents_CL | where TimeGenerated > ago(24h) | summarize c = count());
+let dbgCount = toscalar(DebugTraces_CL | where TimeGenerated > ago(24h) | summarize c = count());
+let auxSignalsExists = toscalar(Usage | where TimeGenerated > ago(24h) and DataType == "AuxSignals_CL" | summarize c=count());
+let auxPortalExists = toscalar(Usage | where TimeGenerated > ago(24h) and DataType == "AuxPortal_CL" | summarize c=count());
+print Stream="AppEvents_CL", Count=appCount
+| union (print Stream="DebugTraces_CL", Count=dbgCount)
+| union (print Stream="AuxSignals_CL", Count=iif(auxSignalsExists > 0, toscalar(AuxSignals_CL | where TimeGenerated > ago(24h) | summarize c = count()), 0))
+| union (print Stream="AuxPortal_CL", Count=iif(auxPortalExists > 0, toscalar(AuxPortal_CL | where TimeGenerated > ago(24h) | summarize c = count()), 0))
+| where Count > 0
+| render barchart
+
+// VISUAL 5: Daily cap gauge helper table (convert to KPI style in portal)
+Usage
+| where TimeGenerated > ago(1d)
+| where IsBillable == true
+| summarize IngestedGB = round(sum(Quantity) / 1000, 3)
+| extend DailyCapGB = 5.0
+| extend PercentUsed = round((IngestedGB / DailyCapGB) * 100, 1)
+| extend Status = case(PercentUsed >= 90, "Near cap", PercentUsed >= 70, "Watch", "Healthy")
+| project IngestedGB, DailyCapGB, PercentUsed, Status
+
+// VISUAL 6: Estimated monthly run-rate by plan - stacked column chart
+Usage
+| where TimeGenerated > ago(1d)
+| where DataType in ("AppEvents_CL", "DebugTraces_CL", "AuxSignals_CL", "AuxPortal_CL")
+| summarize IngestedMB = sum(Quantity) by DataType
+| extend Plan = case(
+    DataType == "AppEvents_CL", "Analytics",
+    DataType == "DebugTraces_CL", "Basic",
+    DataType == "AuxSignals_CL", "Basic",
+    DataType == "AuxPortal_CL", "Auxiliary",
+    "Other"
+)
+| extend PricePerGB = case(
+    Plan == "Analytics", 2.76,
+    Plan == "Basic", 0.88,
+    Plan == "Auxiliary", 0.50,
+    0.88
+)
+| extend DailyUSD = (IngestedMB / 1000.0) * PricePerGB
+| extend MonthlyUSD = round(DailyUSD * 30.0, 2)
+| summarize MonthlyUSD = sum(MonthlyUSD) by Plan
+| render columnchart

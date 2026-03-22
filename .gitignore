@@ -1,0 +1,10 @@
+# Local environment variables and secrets
+.env.ps1
+*.env
+
+# Bicep build artifacts
+*.json
+
+# PowerShell and editor artifacts
+*.log
+.vscode/
