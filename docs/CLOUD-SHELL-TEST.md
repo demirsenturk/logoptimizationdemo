@@ -35,7 +35,7 @@ Simple profile (recommended first test, lower cost, faster):
 pwsh ./quick-deploy.ps1 -NamePrefix "logoptcustomer" -Location "germanywestcentral"
 ```
 
-This creates a separate resource group naming pattern like `rg-logoptcustomer-xxxx` so it does not conflict with existing demos.
+This creates a separate resource group naming pattern like `rg-logoptdemo-xxxx` so it does not conflict with existing demos.
 
 Full demo (includes Linux VM, Windows VM, and PaaS telemetry sources):
 

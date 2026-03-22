@@ -1,6 +1,6 @@
 param(
     [Parameter(Mandatory = $false)]
-    [string]$NamePrefix = "logoptlab",
+    [string]$NamePrefix = "logoptdemo",
 
     [Parameter(Mandatory = $false)]
     [string]$Location = "germanywestcentral",

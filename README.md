@@ -50,7 +50,7 @@ Deployable demo showcasing **8 cost optimization strategies** for Azure Monitor 
 
 ```powershell
 # One-command, synthetic-only deployment with a new RG naming convention
-.\quick-deploy.ps1 -NamePrefix "logoptcustomer"
+.\quick-deploy.ps1 -NamePrefix "logoptdemo"
 
 # Load environment and generate sample data
 . .\.env.ps1
@@ -65,7 +65,7 @@ Deployable demo showcasing **8 cost optimization strategies** for Azure Monitor 
 Use this sequence to keep the session smooth and still show optimization impact.
 
 1. Deploy with isolated naming:
-    - `.\quick-deploy.ps1 -NamePrefix "logoptcustomer"`
+    - `.\quick-deploy.ps1 -NamePrefix "logoptdemo"`
 2. Seed realistic demo volume:
     - `. .\.env.ps1`
     - `.\send-sample-data.ps1 -EventCount 200 -TraceCount 500 -AuxCount 400`
