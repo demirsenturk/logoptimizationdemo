@@ -29,13 +29,13 @@ If you are testing from a fork, replace the clone URL with your fork path.
 
 ## 3) Deploy Demo
 
-Simple profile (recommended first test, lower cost, faster):
+Simple profile (recommended first):
 
 ```powershell
 pwsh ./quick-deploy.ps1 -NamePrefix "logoptdemo" -Location "germanywestcentral"
 ```
 
-This creates a separate resource group naming pattern like `rg-logoptdemo-xxxx` so it does not conflict with existing demos.
+This creates an isolated resource group name like `rg-logoptdemo-xxxx`.
 
 If you want to force using a known Auxiliary table name:
 
@@ -43,7 +43,7 @@ If you want to force using a known Auxiliary table name:
 pwsh ./quick-deploy.ps1 -NamePrefix "logoptdemo" -Location "germanywestcentral" -AuxTableOverrideName "AuxPortal_CL"
 ```
 
-Important:
+Note:
 In a brand-new resource group, `AuxTableOverrideName` is ignored on first deployment if the table does not exist yet.
 
 To use true Auxiliary tier in a fresh environment:
@@ -82,6 +82,16 @@ Expected:
 - Low-touch stream check resolves to Auxiliary table when present (for example AuxPortal_CL), otherwise AuxSignals_CL.
 - Linux/Windows/PaaS checks may need 5-15 minutes after first deploy.
 
+Quick copy/paste flow:
+
+```powershell
+git pull origin main
+pwsh ./quick-deploy.ps1 -NamePrefix "logoptdemo" -Location "germanywestcentral"
+. ./.env.ps1
+pwsh ./send-sample-data.ps1 -EventCount 120 -TraceCount 240 -AuxCount 180
+pwsh ./run-demo-checks.ps1 -Timespan P1D
+```
+
 ## 6) Optional Smoke Queries
 
 ```powershell
@@ -94,7 +104,7 @@ az monitor log-analytics query --workspace $env:WORKSPACE_ID --analytics-query "
 az group delete --name "rg-lawopt-demo-cs" --yes --no-wait
 ```
 
-## Troubleshooting
+## Troubleshooting (Common)
 
 - If `az` prompts to install an extension, allow it and rerun the command.
 - If Auxiliary creation fallback appears, this only affects ARM-created AuxSignals table plan. Existing Auxiliary tables are still reused automatically.

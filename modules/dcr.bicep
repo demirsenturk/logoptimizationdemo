@@ -76,11 +76,11 @@ resource dcrAnalytics 'Microsoft.Insights/dataCollectionRules@2023-03-11' = {
         streams: [ 'Custom-AppEvents_CL' ]
         destinations: [ 'lawDestination' ]
         outputStream: 'Custom-${analyticsTableName}'
-        // TRANSFORMATION: Filter + Project
-        // 1. Drop Info/Debug severity (keep only Warning, Error, Critical)
-        // 2. Drop VerbosePayload, StackTrace, InternalDebugInfo columns
-        // 3. This typically reduces ingestion volume by 60-70%
-        transformKql: 'source | where Severity in ("Warning", "Error", "Critical") | project TimeGenerated, EventName, Severity, Message, UserId, Duration, ResourceId'
+        // TRANSFORMATION BEST PRACTICES:
+        // 1. Filter early to cut ingestion volume.
+        // 2. Keep only business-relevant columns.
+        // 3. Normalize types to reduce query-time parsing overhead.
+        transformKql: 'source | where Severity in~ ("Warning", "Error", "Critical") | where isnotempty(EventName) and isnotempty(Message) | project TimeGenerated, EventName=tostring(EventName), Severity=tostring(Severity), Message=tostring(Message), UserId=tostring(UserId), Duration=toreal(Duration), ResourceId=tostring(ResourceId)'
       }
     ]
   }
@@ -123,7 +123,8 @@ resource dcrBasic 'Microsoft.Insights/dataCollectionRules@2023-03-11' = {
         streams: [ 'Custom-DebugTraces_CL' ]
         destinations: [ 'lawDestination' ]
         outputStream: 'Custom-${basicTableName}'
-        transformKql: 'source'
+        // Keep Basic stream compact and clean while preserving troubleshooting value.
+        transformKql: 'source | where isnotempty(Message) | project TimeGenerated, TraceLevel=tostring(TraceLevel), Component=tostring(Component), Message=tostring(Message), CorrelationId=tostring(CorrelationId)'
       }
     ]
   }
@@ -164,7 +165,8 @@ resource dcrAuxiliary 'Microsoft.Insights/dataCollectionRules@2023-03-11' = {
         streams: [ 'Custom-AuxSignals_CL' ]
         destinations: [ 'lawDestination' ]
         outputStream: 'Custom-${auxiliaryTableName}'
-        transformKql: 'source | project TimeGenerated, SignalType, SourceSystem, PayloadSizeBytes, Message'
+        // Low-touch stream: keep minimal fields and sanitize payload size.
+        transformKql: 'source | where isnotempty(SignalType) and isnotempty(SourceSystem) | project TimeGenerated, SignalType=tostring(SignalType), SourceSystem=tostring(SourceSystem), PayloadSizeBytes=iif(isnull(PayloadSizeBytes) or toint(PayloadSizeBytes) < 0, 0, toint(PayloadSizeBytes)), Message=tostring(Message)'
       }
     ]
   }

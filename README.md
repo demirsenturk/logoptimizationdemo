@@ -1,6 +1,6 @@
 # Azure Monitor Logs Cost Optimization Demo
 
-Deployable demo showcasing **8 cost optimization strategies** for Azure Monitor Logs, following [Microsoft best practices](https://learn.microsoft.com/en-us/azure/azure-monitor/logs/best-practices-logs#cost-optimization).
+A lightweight demo for Azure Monitor Logs cost optimization and Log Analytics FinOps conversations.
 
 ## Prerequisites
 
@@ -11,7 +11,6 @@ Deployable demo showcasing **8 cost optimization strategies** for Azure Monitor 
 
 ## Security and Privacy
 
-- This repository is designed to avoid committed secrets.
 - Runtime environment values are written to local `.env.ps1` after deployment and are excluded from source control.
 - Use `.env.example.ps1` only as a template.
 
@@ -46,7 +45,7 @@ Deployable demo showcasing **8 cost optimization strategies** for Azure Monitor 
 
 ## Quick Start
 
-### Fast Path (Recommended)
+### Fast Path (Recommended for 15-Min Demo)
 
 ```powershell
 # One-command, synthetic-only deployment with a new RG naming convention
@@ -60,9 +59,9 @@ Deployable demo showcasing **8 cost optimization strategies** for Azure Monitor 
 .\run-demo-checks.ps1 -Timespan P1D
 ```
 
-## 10-Minute Showcase Flow (FinOps Session)
+## 15-Minute Demo Flow
 
-Use this sequence to keep the session smooth and still show optimization impact.
+Use this sequence for a clear, simple walkthrough.
 
 1. Deploy with isolated naming:
     - `.\quick-deploy.ps1 -NamePrefix "logoptdemo"`
@@ -77,11 +76,14 @@ Use this sequence to keep the session smooth and still show optimization impact.
     - `VISUAL 4` Stream volume (Analytics vs Basic vs Auxiliary/fallback)
     - `VISUAL 6` Monthly run-rate by plan
 
-This gives a clean narrative: ingest less with DCR, route right data to cheaper plans, and quantify savings.
+Suggested story:
+- ingest less with DCR
+- route data to appropriate table plans
+- compare estimated run-rate by plan
 
-## Best-Practice Spotlight (DCR + Tiering)
+## DCR and Tiering Notes
 
-Use this checklist during the session to highlight how the demo maps to common Azure Monitor guidance.
+If useful, mention these points during discussion:
 
 1. Ingestion-time optimization with DCR transformations:
     - Show transformation pipeline in [modules/dcr.bicep](modules/dcr.bicep)
@@ -136,9 +138,9 @@ Use this checklist during the session to highlight how the demo maps to common A
 
 After publishing to GitHub, use the Cloud Shell runbook in [docs/CLOUD-SHELL-TEST.md](docs/CLOUD-SHELL-TEST.md).
 
-## Official Microsoft Documentation
+## Optional Microsoft Learn References
 
-Use these references during the session to anchor recommendations in first-party guidance:
+Useful references if participants ask for source guidance:
 
 - Azure Monitor Logs best practices (cost optimization):
     - https://learn.microsoft.com/azure/azure-monitor/logs/best-practices-logs#cost-optimization
@@ -195,7 +197,7 @@ The deployment script now auto-detects existing Auxiliary tables in the target w
 
 ### Use True Auxiliary Tier in a Fresh Environment
 
-Warning:
+Note:
 `-AuxTableOverrideName` works only when that table already exists in the target workspace. In a brand-new resource group, there is no workspace yet, so the override is intentionally ignored on first run.
 
 Recommended two-phase flow:
@@ -213,7 +215,7 @@ Recommended two-phase flow:
 ## Cleanup
 
 ```powershell
-az group delete --name rg-lawopt-demo --yes --no-wait
+az group delete --name <your-resource-group> --yes --no-wait
 # or, from the generated .env.ps1 context:
 .\cleanup-demo.ps1 -Force
 ```
