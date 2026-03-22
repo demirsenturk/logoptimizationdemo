@@ -166,7 +166,7 @@ resource dcrAuxiliary 'Microsoft.Insights/dataCollectionRules@2023-03-11' = {
         destinations: [ 'lawDestination' ]
         outputStream: 'Custom-${auxiliaryTableName}'
         // Low-touch stream: keep minimal fields and sanitize payload size.
-        transformKql: 'source | where isnotempty(SignalType) and isnotempty(SourceSystem) | project TimeGenerated, SignalType=tostring(SignalType), SourceSystem=tostring(SourceSystem), PayloadSizeBytes=iif(isnull(PayloadSizeBytes) or toint(PayloadSizeBytes) < 0, 0, toint(PayloadSizeBytes)), Message=tostring(Message)'
+        transformKql: 'source | where isnotempty(SignalType) and isnotempty(SourceSystem) | project TimeGenerated, SignalType=tostring(SignalType), SourceSystem=tostring(SourceSystem), PayloadSizeBytes=iif(isnull(PayloadSizeBytes) or toint(PayloadSizeBytes) < 0, toint(0), toint(PayloadSizeBytes)), Message=tostring(Message)'
       }
     ]
   }

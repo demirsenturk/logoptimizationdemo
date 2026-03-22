@@ -109,6 +109,13 @@ az group delete --name "rg-lawopt-demo-cs" --yes --no-wait
 - If `az` prompts to install an extension, allow it and rerun the command.
 - If Auxiliary creation fallback appears, this only affects ARM-created AuxSignals table plan. Existing Auxiliary tables are still reused automatically.
 - If VM/PaaS telemetry is zero right after deployment, wait and rerun checks after 10 minutes.
+- If you see `Audience https://monitor.azure.com/ is not a supported MSI token audience` in Cloud Shell:
+	- `az logout`
+	- `az login --scope "https://monitor.azure.com//.default"`
+	- rerun `pwsh ./send-sample-data.ps1`
+- If you see `Name or service not known` for the DCE ingestion hostname right after deployment:
+	- wait 2-5 minutes for DNS propagation
+	- rerun `pwsh ./send-sample-data.ps1`
 
 ## Microsoft Learn References
 

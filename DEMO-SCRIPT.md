@@ -1,7 +1,7 @@
-# Azure Monitor Logs Cost Optimization - Showcase Script (10 Minutes)
+# Azure Monitor Logs FinOps - Showcase Script (15 Minutes)
 
 ## Goal
-Show a practical, deployable cost optimization architecture with live data:
+Show a practical, deployable Log Analytics FinOps environment with live data:
 1. Ingestion optimization (DCR transformation)
 2. Data-tiering strategy (Analytics, Basic, Auxiliary or fallback)
 3. Retention and export tiering
@@ -37,9 +37,9 @@ Use these short callouts if you want to connect the live demo to Microsoft guida
 3. Retention tiering:
 	- "We combine interactive retention for short-term operations with cheaper long-term storage strategy."
 
-## 10-Minute Talk Track
+## 15-Minute Talk Track
 
-### 0:00-1:00 - Opening
+### 0:00-2:00 - Opening
 Say:
 "I will show how we reduce log costs without losing operational visibility. The model is simple: ingest less, store smart, and monitor continuously."
 
@@ -47,7 +47,7 @@ Show:
 1. Resource group with deployed assets
 2. Log Analytics workspace overview
 
-### 1:00-3:00 - Cost Drivers and Baseline
+### 2:00-5:00 - Cost Drivers and Baseline
 Say:
 "In Azure Monitor Logs, the biggest cost drivers are ingestion volume, table plan, and retention."
 
@@ -58,7 +58,7 @@ Show:
 Point:
 "You can immediately see which table families dominate spend."
 
-### 3:00-5:00 - Ingestion-Time Optimization (Highest ROI)
+### 5:00-8:00 - Ingestion-Time Optimization (Highest ROI)
 Say:
 "The fastest savings is to optimize before billing happens."
 
@@ -70,7 +70,7 @@ Show:
 Point:
 "We drop low-value events and verbose columns at ingestion time."
 
-### 5:00-7:00 - Table Plan Strategy (Tiered Data)
+### 8:00-11:00 - Table Plan Strategy (Tiered Data)
 Say:
 "We split logs by usage profile:"
 1. AppEvents_CL -> Analytics (high-value ops)
@@ -85,7 +85,7 @@ Show:
 If asked about Auxiliary:
 "This workspace supports true Auxiliary when enabled. If any environment blocks it, the deployment auto-falls back so the architecture is still demonstrable."
 
-### 7:00-8:00 - Real Telemetry (Not Synthetic)
+### 11:00-12:30 - Real Telemetry (Not Synthetic)
 Say:
 "This demo is not only seeded data. We also ingest from real Azure resources via AMA and diagnostics."
 
@@ -97,7 +97,7 @@ Show:
 Point:
 "Synthetic streams make the timing deterministic, while real resources prove this architecture works in production patterns."
 
-### 8:00-9:00 - Retention + Export Tiering
+### 12:30-13:45 - Retention + Export Tiering
 Say:
 "Hot, warm, and cold data each get their own economics."
 
@@ -109,7 +109,7 @@ Show:
 Point:
 "Retention and export are where long-horizon cost control happens."
 
-### 9:00-9:40 - Guardrails and Operational Safety
+### 13:45-14:30 - Guardrails and Operational Safety
 Say:
 "Optimization only works if you keep it stable over time."
 
@@ -117,7 +117,7 @@ Show:
 1. Alert rules (cap threshold, anomaly, noisy table)
 2. Query: Visual 5 from queries/demo-visuals.kql (daily cap usage KPI)
 
-### 9:40-10:00 - Wrap-Up
+### 14:30-15:00 - Wrap-Up
 Say:
 "This design is reusable:"
 1. DCR transformation for ingestion control

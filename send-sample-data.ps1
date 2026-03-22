@@ -43,10 +43,64 @@ Write-Host "============================================" -ForegroundColor Cyan
 
 # ---- Token + resilient ingestion helpers ----
 function Get-MonitorHeaders {
-    $token = az account get-access-token --resource "https://monitor.azure.com/" --query accessToken -o tsv
+    $token = ''
+    try {
+        $token = az account get-access-token --resource "https://monitor.azure.com/" --query accessToken -o tsv 2>$null
+    } catch {
+        $token = ''
+    }
+
+    if ([string]::IsNullOrWhiteSpace($token)) {
+        try {
+            $token = az account get-access-token --scope "https://monitor.azure.com//.default" --query accessToken -o tsv 2>$null
+        } catch {
+            $token = ''
+        }
+    }
+
+    if ([string]::IsNullOrWhiteSpace($token)) {
+        throw "Could not acquire monitor ingestion token. In Cloud Shell, run: az logout ; az login --scope https://monitor.azure.com//.default"
+    }
+
     return @{
         "Authorization" = "Bearer $token"
         "Content-Type"  = "application/json"
+    }
+}
+
+function Wait-DceEndpointReady {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Endpoint,
+        [int]$MaxAttempts = 12,
+        [int]$DelaySeconds = 10
+    )
+
+    $hostName = ''
+    try {
+        $uri = [System.Uri]$Endpoint
+        $hostName = $uri.Host
+    } catch {
+        return
+    }
+
+    if ([string]::IsNullOrWhiteSpace($hostName)) {
+        return
+    }
+
+    for ($i = 1; $i -le $MaxAttempts; $i++) {
+        try {
+            [System.Net.Dns]::GetHostAddresses($hostName) | Out-Null
+            Write-Host "DCE endpoint DNS is ready: $hostName" -ForegroundColor Green
+            return
+        } catch {
+            if ($i -eq $MaxAttempts) {
+                Write-Host "DCE endpoint DNS is not ready yet: $hostName" -ForegroundColor Yellow
+                Write-Host "If this is a fresh deployment, wait 2-5 minutes and retry send-sample-data." -ForegroundColor Yellow
+                return
+            }
+            Start-Sleep -Seconds $DelaySeconds
+        }
     }
 }
 
@@ -94,6 +148,7 @@ function Invoke-IngestionWithRetry {
 }
 
 Write-Host "Getting access token..." -ForegroundColor Yellow
+Wait-DceEndpointReady -Endpoint $env:DCE_ENDPOINT
 
 # ============================================================================
 # DEMO: Send events to Analytics table (DCR will FILTER these)

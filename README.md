@@ -1,221 +1,273 @@
-# Azure Monitor Logs Cost Optimization Demo
+# Azure Monitor Logs FinOps Showcase Environment
 
-A lightweight demo for Azure Monitor Logs cost optimization and Log Analytics FinOps conversations.
+This repository is a practical, customer-shareable showcase for Microsoft FinOps patterns on Azure Monitor Logs.
+
+It demonstrates how to reduce logging costs while keeping operational visibility by combining:
+
+- Data Collection Rules (DCR) transformation and filtering at ingestion time
+- Table plan tiering (Analytics, Basic, and Auxiliary-ready routing)
+- Retention and export strategy for long-term economics
+- Commitment tier and daily cap governance decisions
+- Alert-driven guardrails and KQL verification
+
+Use this repo for a live session, a post-session customer handoff, or a self-paced lab.
+
+## Business Outcomes
+
+By the end of the walkthrough, customers can implement:
+
+1. Ingest less data without losing high-value signals.
+2. Route each log stream to the most cost-effective table plan.
+3. Control retention spend with hot/warm/cold strategy.
+4. Estimate run-rate and validate improvements with KQL.
+5. Apply a repeatable operating model aligned to Microsoft guidance.
+
+## What This Environment Deploys
+
+| Capability | What is deployed | Why it matters for FinOps |
+|---|---|---|
+| Cost-aware workspace | Log Analytics workspace with pricing tier, cap, retention | Core cost control surface |
+| DCR optimization | DCE + DCR streams with transformations | Reduce billable ingestion volume |
+| Tiered tables | Analytics + Basic + Auxiliary-ready stream path | Match cost to query/access pattern |
+| Long-term storage | Storage account + export + lifecycle | Lower long-horizon retention cost |
+| Guardrails | Alert rules for cap/noise/anomaly | Keep optimization stable over time |
+| Real telemetry option | Linux VM, Windows VM, Key Vault, Storage diagnostics | Prove patterns beyond synthetic data |
+
+## Architecture Map
+
+- High-value operational events -> DCR transform -> Analytics table AppEvents_CL
+- Troubleshooting traces -> DCR route -> Basic table DebugTraces_CL
+- Low-touch high-volume stream -> DCR route -> Auxiliary-ready path (AuxSignals_CL by default)
+- Workspace usage and table costs -> KQL dashboards and checks
+- Long-term data needs -> Export to blob + lifecycle to cool/archive
+
+## Microsoft Best-Practice Patterns Showcased
+
+### 1) Ingestion-Time Optimization with DCR
+
+- Keep only required severity and columns before ingestion.
+- Normalize payload structure to avoid unnecessary verbose fields.
+- Use separate DCR streams for different data value profiles.
+
+Implementation reference: [modules/dcr.bicep](modules/dcr.bicep)
+
+### 2) Table Plan Tiering Strategy
+
+| Table | Plan | Pattern |
+|---|---|---|
+| AppEvents_CL | Analytics | High-value ops, richer query needs |
+| DebugTraces_CL | Basic | Lower-frequency troubleshooting |
+| AuxSignals_CL or existing Auxiliary table | Auxiliary-ready | High-volume low-touch telemetry |
+
+Implementation reference: [modules/tables.bicep](modules/tables.bicep)
+
+### 3) Retention and Export Tiering
+
+- Use workspace/table retention for hot operational window.
+- Export selected data for long-term lower-cost storage.
+- Apply lifecycle transitions to control storage cost over time.
+
+Implementation reference: [modules/storage.bicep](modules/storage.bicep)
+
+### 4) Cost Guardrails and Governance
+
+- Daily cap usage visibility and alerting.
+- Noisy table detection and anomaly-focused checks.
+- Reusable KQL checks for post-change validation.
+
+Implementation references:
+- [modules/alerts.bicep](modules/alerts.bicep)
+- [queries/cost-analysis.kql](queries/cost-analysis.kql)
+- [run-demo-checks.ps1](run-demo-checks.ps1)
+
+## Commitment Tier and Pricing Guidance
+
+Use this environment to discuss when to move from pay-as-you-go to commitment tiers:
+
+1. Start with PerGB2018 for new workloads and learning phases.
+2. Measure stable daily ingestion over at least 2-4 weeks.
+3. Compare observed daily usage against commitment break-even points.
+4. Revisit after DCR filtering and tiering changes, not before.
+
+Parameters are exposed in deployment to support this conversation:
+
+- laPricingTier
+- dailyCapGB
+- interactiveRetentionDays
+
+Template reference: [main.bicep](main.bicep)
 
 ## Prerequisites
 
-- Azure subscription with permissions for resource group deployments and RBAC role assignments
-- Azure CLI (`az`) and PowerShell 7 (`pwsh`)
-- Logged in via `az login`
-- For full demo mode: quota for 2 small VMs in the target region
+- Azure subscription with rights for resource group deployment and role assignment
+- Azure CLI and PowerShell 7
+- Authenticated CLI session using az login
+- For full mode: enough quota for Linux and Windows demo VMs in the chosen region
 
-## Security and Privacy
+## Quick Start (Recommended for Sessions)
 
-- Runtime environment values are written to local `.env.ps1` after deployment and are excluded from source control.
-- Use `.env.example.ps1` only as a template.
-
-## What Gets Deployed
-
-| Resource | Purpose |
-|---|---|
-| Log Analytics Workspace | Pricing tier, daily cap, retention settings |
-| Custom Table (Analytics plan) | `AppEvents_CL` — full features, standard cost |
-| Custom Table (Basic plan) | `DebugTraces_CL` — 68% cheaper ingestion |
-| Low-touch Stream Table (Basic fallback) | `AuxSignals_CL` — Auxiliary-candidate long-tail telemetry stream |
-| Data Collection Endpoint | Ingestion endpoint for DCR |
-| DCR with Transformations | Filters rows + drops columns before ingestion |
-| DCR for Basic Table | Routes debug data to cheaper Basic plan |
-| Linux VM + AMA + DCR | Real heartbeat/syslog source for non-synthetic proof |
-| Windows VM + AMA + DCR | Real heartbeat/event source for non-synthetic proof |
-| Key Vault + Storage Diagnostics | Real PaaS diagnostics sent to workspace |
-| Storage Account (GRS, Cool) | Data export target with lifecycle policies |
-| Data Export Rule | Exports Heartbeat table to blob storage |
-| 3 Alert Rules | Daily cap, anomaly detection, noisy table detection |
-
-## Cost Optimization Strategies Demonstrated
-
-1. **Pricing Tier Selection** — Pay-as-you-go vs commitment tiers
-2. **Daily Ingestion Cap** — Budget protection against runaway costs
-3. **DCR Ingestion-Time Transformations** — Filter rows & drop columns before billing
-4. **Table Strategy (Analytics + Basic + Low-touch Stream)** — right data to right economics tier
-5. **Retention Tiering** — Interactive (hot) vs Archive (cold) retention
-6. **Data Export to Storage** — Blob lifecycle: Cool → Archive → Delete
-7. **Proactive Cost Alerts** — Cap warning, anomaly detection, noisy table alerts
-8. **Usage Analysis Queries** — KQL queries for ongoing cost review
-
-## Quick Start
-
-### Fast Path (Recommended for 15-Min Demo)
+### Fast Synthetic Path
 
 ```powershell
-# One-command, synthetic-only deployment with a new RG naming convention
+# 1) Deploy synthetic-only stack into a new isolated resource group
 .\quick-deploy.ps1 -NamePrefix "logoptdemo"
 
-# Load environment and generate sample data
+# 2) Load generated environment variables
 . .\.env.ps1
+
+# 3) Seed deterministic sample data
 .\send-sample-data.ps1 -EventCount 120 -TraceCount 240 -AuxCount 180
 
-# Validate
+# 4) Validate health, table plans, and ingestion outcomes
 .\run-demo-checks.ps1 -Timespan P1D
 ```
 
-## 15-Minute Demo Flow
-
-Use this sequence for a clear, simple walkthrough.
-
-1. Deploy with isolated naming:
-    - `.\quick-deploy.ps1 -NamePrefix "logoptdemo"`
-2. Seed realistic demo volume:
-    - `. .\.env.ps1`
-    - `.\send-sample-data.ps1 -EventCount 200 -TraceCount 500 -AuxCount 400`
-3. Run health/plan checks:
-    - `.\run-demo-checks.ps1 -Timespan P1D`
-4. In Log Analytics, run visuals in this order from `queries/demo-visuals.kql`:
-    - `VISUAL 1` Cost by table
-    - `VISUAL 3` Severity mix after DCR filtering
-    - `VISUAL 4` Stream volume (Analytics vs Basic vs Auxiliary/fallback)
-    - `VISUAL 6` Monthly run-rate by plan
-
-Suggested story:
-- ingest less with DCR
-- route data to appropriate table plans
-- compare estimated run-rate by plan
-
-## DCR and Tiering Notes
-
-If useful, mention these points during discussion:
-
-1. Ingestion-time optimization with DCR transformations:
-    - Show transformation pipeline in [modules/dcr.bicep](modules/dcr.bicep)
-    - Explain filter/project behavior for `Custom-AppEvents_CL` and reduced billable ingestion.
-2. Table-plan tiering strategy:
-    - Show table plan configuration in [modules/tables.bicep](modules/tables.bicep)
-    - Demonstrate Analytics (`AppEvents_CL`) vs Basic (`DebugTraces_CL`) vs Auxiliary or fallback (`AuxPortal_CL`/`AuxSignals_CL`).
-3. Retention and storage tiering:
-    - Show retention and export resources in [modules/workspace.bicep](modules/workspace.bicep) and [modules/storage.bicep](modules/storage.bicep)
-    - Explain interactive retention vs archive economics.
-4. Operational guardrails:
-    - Show scheduled query alerts in [modules/alerts.bicep](modules/alerts.bicep)
-    - Demonstrate cap/anomaly/noisy-table controls.
-5. Quantified outcome:
-    - Run visuals from [queries/demo-visuals.kql](queries/demo-visuals.kql)
-    - Run deep analysis from [queries/cost-analysis.kql](queries/cost-analysis.kql)
-
-### Full Path (Real VM/PaaS Sources)
+### Full Real-Source Path
 
 ```powershell
-# Deploy everything
+# Deploy complete environment including Linux/Windows VM and PaaS sources
 .\deploy.ps1 -ResourceGroupName "rg-lawopt-demo" -Location "germanywestcentral"
 
-# Load environment variables
+# Load env and seed data
 . .\.env.ps1
+.\send-sample-data.ps1 -EventCount 200 -TraceCount 500 -AuxCount 400
 
-# Send sample data
-.\send-sample-data.ps1
-
-# Verify data and cost checks (handles Basic table API correctly)
-.\run-demo-checks.ps1
-
-# Optional: if you only want synthetic demo assets
-# .\deploy.ps1 -DeployRealVmSource $false -DeployRealWindowsVmSource $false -DeployRealPaaSSources $false
-
-# Run visual deck queries during presentation
-# Open queries/demo-visuals.kql in Log Analytics
-
-# Open the Azure Portal and follow DEMO-SCRIPT.md
+# Verify synthetic + real source checks
+.\run-demo-checks.ps1 -Timespan P1D
 ```
 
-## Deployment Profiles
+Deployment script references:
 
-- Full realistic profile:
-    - `-DeployRealVmSource $true -DeployRealWindowsVmSource $true -DeployRealPaaSSources $true`
-    - Includes Linux/Windows VM telemetry and Key Vault/Storage diagnostics.
-- Lightweight synthetic profile:
-    - `-DeployRealVmSource $false -DeployRealWindowsVmSource $false -DeployRealPaaSSources $false`
-    - Fastest setup for dry runs.
+- [quick-deploy.ps1](quick-deploy.ps1)
+- [deploy.ps1](deploy.ps1)
 
-## Cloud Shell Testing
+## How to Validate FinOps Outcomes
 
-After publishing to GitHub, use the Cloud Shell runbook in [docs/CLOUD-SHELL-TEST.md](docs/CLOUD-SHELL-TEST.md).
+Use these in order:
 
-## Optional Microsoft Learn References
+1. Run [run-demo-checks.ps1](run-demo-checks.ps1) and confirm data counts by stream.
+2. Open [queries/demo-visuals.kql](queries/demo-visuals.kql) and run:
+     - VISUAL 1: Cost by table
+     - VISUAL 3: Severity mix after DCR filtering
+     - VISUAL 4: Stream volume by plan path
+     - VISUAL 6: Monthly run-rate by plan
+3. Open [queries/cost-analysis.kql](queries/cost-analysis.kql) for deeper cost reasoning.
 
-Useful references if participants ask for source guidance:
+Tip: ingestion can take a few minutes. If first check returns zeros, wait and rerun.
 
-- Azure Monitor Logs best practices (cost optimization):
-    - https://learn.microsoft.com/azure/azure-monitor/logs/best-practices-logs#cost-optimization
-- Azure Monitor cost optimization guidance:
-    - https://learn.microsoft.com/azure/azure-monitor/fundamentals/best-practices-cost#azure-monitor-logs
-- Log Analytics table plans (Analytics, Basic, Auxiliary):
-    - https://learn.microsoft.com/azure/azure-monitor/logs/data-platform-logs#table-plans
-- Configure Basic Logs table plan:
-    - https://learn.microsoft.com/azure/azure-monitor/logs/basic-logs-configure
-- Auxiliary custom table setup:
-    - https://learn.microsoft.com/azure/azure-monitor/logs/create-custom-table-auxiliary
-- Data collection transformations (DCR) and cost behavior:
-    - https://learn.microsoft.com/azure/azure-monitor/data-collection/data-collection-transformations#cost-for-transformations
-- Logs ingestion API overview:
-    - https://learn.microsoft.com/azure/azure-monitor/logs/logs-ingestion-api-overview
-- Retention and archive settings:
-    - https://learn.microsoft.com/azure/azure-monitor/logs/data-retention-configure
-- Search jobs and restored data:
-    - https://learn.microsoft.com/azure/azure-monitor/logs/search-jobs
-    - https://learn.microsoft.com/azure/azure-monitor/logs/restore
+## 15-Minute Customer Storyline
 
-## Project Structure
+1. Cost baseline: show table-level usage and run-rate.
+2. DCR optimization: show filter/project impact on AppEvents stream.
+3. Plan tiering: explain Analytics vs Basic vs Auxiliary-ready strategy.
+4. Retention/export: show workspace retention plus data export lifecycle.
+5. Guardrails: show alerts and ongoing governance model.
 
-```
-lawopt/
-├── main.bicep                  # Main deployment template
-├── main.bicepparam             # Parameter file
-├── deploy.ps1                  # Deployment script
-├── quick-deploy.ps1            # Simplified one-command synthetic deploy
-├── send-sample-data.ps1        # Sample data generator
-├── run-demo-checks.ps1         # Verification checks (synthetic + Linux/Windows/PaaS)
-├── DEMO-SCRIPT.md              # 10-minute demo walkthrough
-├── README.md                   # This file
-├── modules/
-│   ├── workspace.bicep         # LAW with pricing, cap, retention
-│   ├── tables.bicep            # Analytics vs Basic plan tables
-│   ├── dcr.bicep               # DCE + DCR with transformations
-│   ├── storage.bicep           # Storage + lifecycle + data export
-│   ├── alerts.bicep            # Cost monitoring alerts
-│   ├── real-vm-demo.bicep      # Linux VM + AMA + DCR association
-│   ├── real-windows-vm-demo.bicep # Windows VM + AMA + DCR association
-│   └── real-paas-demo.bicep    # Key Vault + Storage diagnostics
-└── queries/
-    ├── cost-analysis.kql       # 7 KQL queries for cost analysis
-    ├── demo-visuals.kql        # chart-first visual queries for showcase
-    └── verify-and-cleanup.kql  # Verification queries
+Speaker guide reference: [DEMO-SCRIPT.md](DEMO-SCRIPT.md)
+
+## Auxiliary Plan Behavior (Important)
+
+This environment is designed to be robust across subscriptions:
+
+- If Auxiliary creation is available, you can route low-touch stream to an Auxiliary table.
+- If Auxiliary creation is blocked in your environment, deployment automatically falls back so demo flow still works.
+- If a workspace already contains an Auxiliary table (for example AuxPortal_CL), the deployment can reuse it.
+
+To force existing Auxiliary table usage in a second pass:
+
+```powershell
+.\deploy.ps1 -ResourceGroupName "<existing-rg>" -Location "germanywestcentral" -AuxTableOverrideName "AuxPortal_CL" -DeployRealVmSource $false -DeployRealWindowsVmSource $false -DeployRealPaaSSources $false
 ```
 
-## Auxiliary Plan Note
+## Deployment Modes
 
-If `Auxiliary` is enabled in your workspace, you can use a true Auxiliary table (for example `AuxPortal_CL`) and the visual deck will include it automatically. If ARM deployment blocks Auxiliary in a given environment, the demo falls back to `AuxSignals_CL` on Basic and still demonstrates the same low-touch data-stream architecture.
+- Full mode:
+    - DeployRealVmSource true
+    - DeployRealWindowsVmSource true
+    - DeployRealPaaSSources true
+    - Best for production-like observability proof
+- Lightweight mode:
+    - DeployRealVmSource false
+    - DeployRealWindowsVmSource false
+    - DeployRealPaaSSources false
+    - Best for rapid workshop setup
 
-The deployment script now auto-detects existing Auxiliary tables in the target workspace and reuses one for DCR low-touch routing, so sample signals can land in your real Auxiliary table without changing code.
+## Customer Self-Paced Lab Path
 
-### Use True Auxiliary Tier in a Fresh Environment
+After your session, customers can follow this exact flow:
 
-Note:
-`-AuxTableOverrideName` works only when that table already exists in the target workspace. In a brand-new resource group, there is no workspace yet, so the override is intentionally ignored on first run.
+1. Clone and run quick start.
+2. Verify ingestion and table plan behavior.
+3. Run KQL visuals and record before/after cost view.
+4. Adjust event volumes and rerun checks.
+5. Test retention and export assumptions for their own policy targets.
 
-Recommended two-phase flow:
+Cloud Shell instructions: [docs/CLOUD-SHELL-TEST.md](docs/CLOUD-SHELL-TEST.md)
 
-1. Phase 1: Create the workspace and baseline demo resources.
-    - `./quick-deploy.ps1 -NamePrefix "logoptdemo"`
-2. Phase 2: Create an Auxiliary table in that workspace.
-    - In Azure Portal: Log Analytics workspace -> Tables -> Create -> Custom log (DCR-based) -> Plan: Auxiliary.
-    - Example table name: `AuxPortal_CL`.
-3. Phase 3: Rerun deploy and force routing to that table.
-    - `./deploy.ps1 -ResourceGroupName "<same-rg-name>" -Location "germanywestcentral" -AuxTableOverrideName "AuxPortal_CL" -DeployRealVmSource $false -DeployRealWindowsVmSource $false -DeployRealPaaSSources $false`
-4. Verify table plan and ingestion path.
-    - `az monitor log-analytics workspace table show -g "<same-rg-name>" --workspace-name "<workspace-name>" -n AuxPortal_CL --query "{name:name,plan:plan}" -o table`
+## Repository Map
+
+```text
+.
+|-- main.bicep
+|-- main.bicepparam
+|-- deploy.ps1
+|-- quick-deploy.ps1
+|-- send-sample-data.ps1
+|-- run-demo-checks.ps1
+|-- cleanup-demo.ps1
+|-- DEMO-SCRIPT.md
+|-- docs/
+|   `-- CLOUD-SHELL-TEST.md
+|-- modules/
+|   |-- workspace.bicep
+|   |-- tables.bicep
+|   |-- dcr.bicep
+|   |-- storage.bicep
+|   |-- alerts.bicep
+|   |-- real-vm-demo.bicep
+|   |-- real-windows-vm-demo.bicep
+|   `-- real-paas-demo.bicep
+`-- queries/
+        |-- cost-analysis.kql
+        |-- demo-visuals.kql
+        `-- verify-and-cleanup.kql
+```
+
+## Security and Operational Notes
+
+- Generated runtime values are stored in local .env.ps1 and should not be committed.
+- Use least-privilege RBAC for demo operators.
+- Keep resource groups short-lived for workshop scenarios.
+- For customer environments, integrate this pattern into enterprise landing zone and policy controls.
 
 ## Cleanup
 
 ```powershell
-az group delete --name <your-resource-group> --yes --no-wait
-# or, from the generated .env.ps1 context:
+# From current context:
 .\cleanup-demo.ps1 -Force
+
+# Or directly via Azure CLI:
+az group delete --name <resource-group-name> --yes --no-wait
 ```
+
+## Microsoft Learn References
+
+- Azure Monitor Logs best practices (cost):
+    - https://learn.microsoft.com/azure/azure-monitor/logs/best-practices-logs#cost-optimization
+- Azure Monitor cost optimization:
+    - https://learn.microsoft.com/azure/azure-monitor/fundamentals/best-practices-cost#azure-monitor-logs
+- Log Analytics table plans:
+    - https://learn.microsoft.com/azure/azure-monitor/logs/data-platform-logs#table-plans
+- Configure Basic Logs:
+    - https://learn.microsoft.com/azure/azure-monitor/logs/basic-logs-configure
+- Auxiliary custom tables:
+    - https://learn.microsoft.com/azure/azure-monitor/logs/create-custom-table-auxiliary
+- DCR transformations and cost:
+    - https://learn.microsoft.com/azure/azure-monitor/data-collection/data-collection-transformations#cost-for-transformations
+- Logs Ingestion API:
+    - https://learn.microsoft.com/azure/azure-monitor/logs/logs-ingestion-api-overview
+- Retention configuration:
+    - https://learn.microsoft.com/azure/azure-monitor/logs/data-retention-configure
+- Search jobs and restore:
+    - https://learn.microsoft.com/azure/azure-monitor/logs/search-jobs
+    - https://learn.microsoft.com/azure/azure-monitor/logs/restore
