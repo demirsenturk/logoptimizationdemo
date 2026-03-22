@@ -60,6 +60,45 @@ Deployable demo showcasing **8 cost optimization strategies** for Azure Monitor 
 .\run-demo-checks.ps1 -Timespan P1D
 ```
 
+## 10-Minute Showcase Flow (FinOps Session)
+
+Use this sequence to keep the session smooth and still show optimization impact.
+
+1. Deploy with isolated naming:
+    - `.\quick-deploy.ps1 -NamePrefix "logoptcustomer"`
+2. Seed realistic demo volume:
+    - `. .\.env.ps1`
+    - `.\send-sample-data.ps1 -EventCount 200 -TraceCount 500 -AuxCount 400`
+3. Run health/plan checks:
+    - `.\run-demo-checks.ps1 -Timespan P1D`
+4. In Log Analytics, run visuals in this order from `queries/demo-visuals.kql`:
+    - `VISUAL 1` Cost by table
+    - `VISUAL 3` Severity mix after DCR filtering
+    - `VISUAL 4` Stream volume (Analytics vs Basic vs Auxiliary/fallback)
+    - `VISUAL 6` Monthly run-rate by plan
+
+This gives a clean narrative: ingest less with DCR, route right data to cheaper plans, and quantify savings.
+
+## Best-Practice Spotlight (DCR + Tiering)
+
+Use this checklist during the session to highlight how the demo maps to common Azure Monitor guidance.
+
+1. Ingestion-time optimization with DCR transformations:
+    - Show transformation pipeline in [modules/dcr.bicep](modules/dcr.bicep)
+    - Explain filter/project behavior for `Custom-AppEvents_CL` and reduced billable ingestion.
+2. Table-plan tiering strategy:
+    - Show table plan configuration in [modules/tables.bicep](modules/tables.bicep)
+    - Demonstrate Analytics (`AppEvents_CL`) vs Basic (`DebugTraces_CL`) vs Auxiliary or fallback (`AuxPortal_CL`/`AuxSignals_CL`).
+3. Retention and storage tiering:
+    - Show retention and export resources in [modules/workspace.bicep](modules/workspace.bicep) and [modules/storage.bicep](modules/storage.bicep)
+    - Explain interactive retention vs archive economics.
+4. Operational guardrails:
+    - Show scheduled query alerts in [modules/alerts.bicep](modules/alerts.bicep)
+    - Demonstrate cap/anomaly/noisy-table controls.
+5. Quantified outcome:
+    - Run visuals from [queries/demo-visuals.kql](queries/demo-visuals.kql)
+    - Run deep analysis from [queries/cost-analysis.kql](queries/cost-analysis.kql)
+
 ### Full Path (Real VM/PaaS Sources)
 
 ```powershell
@@ -96,6 +135,30 @@ Deployable demo showcasing **8 cost optimization strategies** for Azure Monitor 
 ## Cloud Shell Testing
 
 After publishing to GitHub, use the Cloud Shell runbook in [docs/CLOUD-SHELL-TEST.md](docs/CLOUD-SHELL-TEST.md).
+
+## Official Microsoft Documentation
+
+Use these references during the session to anchor recommendations in first-party guidance:
+
+- Azure Monitor Logs best practices (cost optimization):
+    - https://learn.microsoft.com/azure/azure-monitor/logs/best-practices-logs#cost-optimization
+- Azure Monitor cost optimization guidance:
+    - https://learn.microsoft.com/azure/azure-monitor/fundamentals/best-practices-cost#azure-monitor-logs
+- Log Analytics table plans (Analytics, Basic, Auxiliary):
+    - https://learn.microsoft.com/azure/azure-monitor/logs/data-platform-logs#table-plans
+- Configure Basic Logs table plan:
+    - https://learn.microsoft.com/azure/azure-monitor/logs/basic-logs-configure
+- Auxiliary custom table setup:
+    - https://learn.microsoft.com/azure/azure-monitor/logs/create-custom-table-auxiliary
+- Data collection transformations (DCR) and cost behavior:
+    - https://learn.microsoft.com/azure/azure-monitor/data-collection/data-collection-transformations#cost-for-transformations
+- Logs ingestion API overview:
+    - https://learn.microsoft.com/azure/azure-monitor/logs/logs-ingestion-api-overview
+- Retention and archive settings:
+    - https://learn.microsoft.com/azure/azure-monitor/logs/data-retention-configure
+- Search jobs and restored data:
+    - https://learn.microsoft.com/azure/azure-monitor/logs/search-jobs
+    - https://learn.microsoft.com/azure/azure-monitor/logs/restore
 
 ## Project Structure
 
@@ -134,4 +197,6 @@ The deployment script now auto-detects existing Auxiliary tables in the target w
 
 ```powershell
 az group delete --name rg-lawopt-demo --yes --no-wait
+# or, from the generated .env.ps1 context:
+.\cleanup-demo.ps1 -Force
 ```

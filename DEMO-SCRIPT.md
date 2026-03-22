@@ -26,6 +26,17 @@ If you want richer charts at demo time, run one extra seed cycle 5 minutes befor
 Real VM/PaaS telemetry can take 5-15 minutes after first deployment.
 If an Auxiliary table already exists in the workspace (for example `AuxPortal_CL`), deployment reuses it automatically for low-touch DCR routing.
 
+## Optional Best-Practice Callouts
+
+Use these short callouts if you want to connect the live demo to Microsoft guidance without making the session too formal.
+
+1. DCR ingestion optimization:
+	- "We filter and project at ingestion time so we only pay for data we need."
+2. Table tiering strategy:
+	- "We keep high-value logs in Analytics and route low-touch streams to Basic/Auxiliary-style paths."
+3. Retention tiering:
+	- "We combine interactive retention for short-term operations with cheaper long-term storage strategy."
+
 ## 10-Minute Talk Track
 
 ### 0:00-1:00 - Opening

@@ -85,6 +85,19 @@ az group delete --name "rg-lawopt-demo-cs" --yes --no-wait
 - If Auxiliary creation fallback appears, this only affects ARM-created AuxSignals table plan. Existing Auxiliary tables are still reused automatically.
 - If VM/PaaS telemetry is zero right after deployment, wait and rerun checks after 10 minutes.
 
+## Microsoft Learn References
+
+- Azure Monitor Logs best practices (cost):
+	- https://learn.microsoft.com/azure/azure-monitor/logs/best-practices-logs#cost-optimization
+- Table plans (Analytics, Basic, Auxiliary):
+	- https://learn.microsoft.com/azure/azure-monitor/logs/data-platform-logs#table-plans
+- Basic Logs configuration:
+	- https://learn.microsoft.com/azure/azure-monitor/logs/basic-logs-configure
+- Auxiliary custom table setup:
+	- https://learn.microsoft.com/azure/azure-monitor/logs/create-custom-table-auxiliary
+- DCR transformations and cost:
+	- https://learn.microsoft.com/azure/azure-monitor/data-collection/data-collection-transformations#cost-for-transformations
+
 ## Pre-Publish Safety Check
 
 Run these locally before pushing:
