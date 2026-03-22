@@ -30,9 +30,9 @@ Write-Host "Resource group (isolated naming): $resourceGroupName" -ForegroundCol
     -DeployRealPaaSSources $false
 
 Write-Host "" 
-Write-Host "Next steps (run one by one):" -ForegroundColor Yellow
-Write-Host "  1) . .\\.env.ps1" -ForegroundColor White
-Write-Host "  2) .\\send-sample-data.ps1 -EventCount 120 -TraceCount 240 -AuxCount 180" -ForegroundColor White
-Write-Host "  3) .\\run-demo-checks.ps1 -Timespan P1D" -ForegroundColor White
-Write-Host "  4) Optional cleanup (with confirmation): .\\cleanup-demo.ps1" -ForegroundColor White
-Write-Host "     Use -Force only if you intentionally want non-interactive delete." -ForegroundColor Gray
+Write-Host "Copy/paste commands (run one by one):" -ForegroundColor Yellow
+Write-Host ". ./.env.ps1" -ForegroundColor White
+Write-Host "pwsh ./send-sample-data.ps1 -EventCount 120 -TraceCount 240 -AuxCount 180" -ForegroundColor White
+Write-Host "pwsh ./run-demo-checks.ps1 -Timespan P1D" -ForegroundColor White
+Write-Host "pwsh ./cleanup-demo.ps1" -ForegroundColor White
+Write-Host "Optional non-interactive cleanup: pwsh ./cleanup-demo.ps1 -Force" -ForegroundColor Gray
