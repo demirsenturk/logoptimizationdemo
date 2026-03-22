@@ -5,9 +5,11 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
+$envFilePath = Join-Path $PSScriptRoot '.env.ps1'
+
 if (-not $env:WORKSPACE_ID) {
-    if (Test-Path "$PSScriptRoot\.env.ps1") {
-        . "$PSScriptRoot\.env.ps1"
+    if (Test-Path $envFilePath) {
+        . $envFilePath
     } else {
         throw "Missing WORKSPACE_ID. Run deploy script first."
     }

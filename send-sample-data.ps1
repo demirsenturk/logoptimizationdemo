@@ -25,10 +25,12 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+$envFilePath = Join-Path $PSScriptRoot '.env.ps1'
+
 # ---- Load environment ----
 if (-not $env:DCE_ENDPOINT) {
-    if (Test-Path "$PSScriptRoot\.env.ps1") {
-        . "$PSScriptRoot\.env.ps1"
+    if (Test-Path $envFilePath) {
+        . $envFilePath
     } else {
         Write-Error "Run deploy.ps1 first, then: . .\.env.ps1"
         exit 1

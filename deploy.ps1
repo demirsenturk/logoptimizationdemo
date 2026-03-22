@@ -55,6 +55,9 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+$templateFilePath = Join-Path $PSScriptRoot 'main.bicep'
+$envFilePath = Join-Path $PSScriptRoot '.env.ps1'
+
 Write-Host "============================================" -ForegroundColor Cyan
 Write-Host " Log Analytics Cost Optimization Demo" -ForegroundColor Cyan
 Write-Host "============================================" -ForegroundColor Cyan
@@ -102,7 +105,7 @@ $deploymentName = "lawopt-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
 
 $resultRaw = az deployment group create `
     --resource-group $ResourceGroupName `
-    --template-file "$PSScriptRoot\main.bicep" `
+    --template-file "$templateFilePath" `
     --name $deploymentName `
     --parameters laPricingTier=$PricingTier enableAuxiliaryPlan=$effectiveUseAuxiliaryPlan auxTableOverrideName=$auxTableOverrideName deployRealVmSource=$DeployRealVmSource deployRealWindowsVmSource=$DeployRealWindowsVmSource deployRealPaaSSources=$DeployRealPaaSSources vmAdminUsername=$VmAdminUsername vmAdminPassword="$VmAdminPassword" `
     --query properties.outputs `
@@ -115,7 +118,7 @@ if ($LASTEXITCODE -ne 0 -and $UseAuxiliaryPlan -and ($resultRaw -match "Table pl
     $deploymentName = "lawopt-$(Get-Date -Format 'yyyyMMdd-HHmmss')-fallback"
     $resultRaw = az deployment group create `
         --resource-group $ResourceGroupName `
-        --template-file "$PSScriptRoot\main.bicep" `
+        --template-file "$templateFilePath" `
         --name $deploymentName `
         --parameters laPricingTier=$PricingTier enableAuxiliaryPlan=false auxTableOverrideName=$auxTableOverrideName deployRealVmSource=$DeployRealVmSource deployRealWindowsVmSource=$DeployRealWindowsVmSource deployRealPaaSSources=$DeployRealPaaSSources vmAdminUsername=$VmAdminUsername vmAdminPassword="$VmAdminPassword" `
         --query properties.outputs `
@@ -203,7 +206,7 @@ $envFile = @"
 `$env:REAL_STORAGE_NAME = "$($outputs.realStorageName.value)"
 `$env:REAL_STORAGE_CONTAINER = "$($outputs.realStorageContainerName.value)"
 "@
-$envFile | Out-File -FilePath "$PSScriptRoot\.env.ps1" -Encoding utf8
+$envFile | Out-File -FilePath $envFilePath -Encoding utf8
 
 # ---- Grant ingestion permissions on all DCRs for current signed-in user ----
 Write-Host "Configuring DCR ingestion permissions..." -ForegroundColor Yellow
