@@ -47,6 +47,9 @@ param(
     [bool]$DeployRealPaaSSources = $true
     ,
     [Parameter(Mandatory = $false)]
+    [string]$AuxTableOverrideName = ''
+    ,
+    [Parameter(Mandatory = $false)]
     [string]$VmAdminUsername = 'lawoptadmin'
     ,
     [Parameter(Mandatory = $false)]
@@ -83,20 +86,23 @@ az group create --name $ResourceGroupName --location $Location --output none
 Write-Host "  Resource group ready." -ForegroundColor Green
 
 # ---- Optional: detect existing Auxiliary table and reuse it ----
-$auxTableOverrideName = ''
+$auxTableOverrideName = $AuxTableOverrideName
 $effectiveUseAuxiliaryPlan = $UseAuxiliaryPlan
-try {
-    $existingWorkspaceName = az monitor log-analytics workspace list -g $ResourceGroupName --query "[0].name" -o tsv
-    if (-not [string]::IsNullOrWhiteSpace($existingWorkspaceName)) {
-        $auxTableOverrideName = az monitor log-analytics workspace table list -g $ResourceGroupName --workspace-name $existingWorkspaceName --query "[?plan=='Auxiliary'] | [0].name" -o tsv
-        if (-not [string]::IsNullOrWhiteSpace($auxTableOverrideName)) {
-            Write-Host "  Reusing existing Auxiliary table for low-touch DCR route: $auxTableOverrideName" -ForegroundColor Green
-            Write-Host "  Skipping AuxSignals Auxiliary creation attempt to avoid ARM fallback noise." -ForegroundColor Gray
-            $effectiveUseAuxiliaryPlan = $false
+if ([string]::IsNullOrWhiteSpace($auxTableOverrideName)) {
+    try {
+        $existingWorkspaceName = az monitor log-analytics workspace list -g $ResourceGroupName --query "[0].name" -o tsv
+        if (-not [string]::IsNullOrWhiteSpace($existingWorkspaceName)) {
+            $auxTableOverrideName = az monitor log-analytics workspace table list -g $ResourceGroupName --workspace-name $existingWorkspaceName --query "[?plan=='Auxiliary'] | [0].name" -o tsv
         }
+    } catch {
+        # Non-blocking discovery.
     }
-} catch {
-    # Non-blocking discovery.
+}
+
+if (-not [string]::IsNullOrWhiteSpace($auxTableOverrideName)) {
+    Write-Host "  Reusing Auxiliary table for low-touch DCR route: $auxTableOverrideName" -ForegroundColor Green
+    Write-Host "  Skipping AuxSignals Auxiliary creation attempt to avoid ARM fallback noise." -ForegroundColor Gray
+    $effectiveUseAuxiliaryPlan = $false
 }
 
 # ---- Deploy Bicep ----
@@ -113,8 +119,10 @@ $resultRaw = az deployment group create `
     --output json 2>&1
 
 if ($LASTEXITCODE -ne 0 -and $UseAuxiliaryPlan -and ($resultRaw -match "Table plan 'Auxiliary' is not supported")) {
-    Write-Host "  ARM deployment for AuxSignals_CL as Auxiliary is not supported here. Retrying with Basic fallback for that demo table..." -ForegroundColor Yellow
-    Write-Host "  Note: Existing Auxiliary tables (for example created in portal) can still exist and be used." -ForegroundColor Yellow
+    Write-Host "  Auxiliary table creation via ARM is not available in this environment for new demo table AuxSignals_CL." -ForegroundColor Yellow
+    Write-Host "  Typical reasons: region/cloud rollout differences, feature availability limits, or policy constraints on this subscription/tenant." -ForegroundColor Yellow
+    Write-Host "  The script will continue with Basic fallback for AuxSignals_CL so the demo remains runnable." -ForegroundColor Yellow
+    Write-Host "  If an existing Auxiliary table is already present (for example created in portal), it can still be detected and used." -ForegroundColor Yellow
     $deploymentName = "lawopt-$(Get-Date -Format 'yyyyMMdd-HHmmss')-fallback"
     $resultRaw = az deployment group create `
         --resource-group $ResourceGroupName `

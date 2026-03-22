@@ -32,10 +32,16 @@ If you are testing from a fork, replace the clone URL with your fork path.
 Simple profile (recommended first test, lower cost, faster):
 
 ```powershell
-pwsh ./quick-deploy.ps1 -NamePrefix "logoptcustomer" -Location "germanywestcentral"
+pwsh ./quick-deploy.ps1 -NamePrefix "logoptdemo" -Location "germanywestcentral"
 ```
 
 This creates a separate resource group naming pattern like `rg-logoptdemo-xxxx` so it does not conflict with existing demos.
+
+If you want to force using a known Auxiliary table name:
+
+```powershell
+pwsh ./quick-deploy.ps1 -NamePrefix "logoptdemo" -Location "germanywestcentral" -AuxTableOverrideName "AuxPortal_CL"
+```
 
 Full demo (includes Linux VM, Windows VM, and PaaS telemetry sources):
 

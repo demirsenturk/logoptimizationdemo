@@ -7,6 +7,9 @@ param(
 
     [Parameter(Mandatory = $false)]
     [bool]$UseAuxiliaryPlan = $true
+    ,
+    [Parameter(Mandatory = $false)]
+    [string]$AuxTableOverrideName = ''
 )
 
 $ErrorActionPreference = "Stop"
@@ -21,6 +24,7 @@ Write-Host "Resource group (isolated naming): $resourceGroupName" -ForegroundCol
     -ResourceGroupName $resourceGroupName `
     -Location $Location `
     -UseAuxiliaryPlan $UseAuxiliaryPlan `
+    -AuxTableOverrideName $AuxTableOverrideName `
     -DeployRealVmSource $false `
     -DeployRealWindowsVmSource $false `
     -DeployRealPaaSSources $false
