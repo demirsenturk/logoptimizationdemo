@@ -43,6 +43,15 @@ If you want to force using a known Auxiliary table name:
 pwsh ./quick-deploy.ps1 -NamePrefix "logoptdemo" -Location "germanywestcentral" -AuxTableOverrideName "AuxPortal_CL"
 ```
 
+Important:
+In a brand-new resource group, `AuxTableOverrideName` is ignored on first deployment if the table does not exist yet.
+
+To use true Auxiliary tier in a fresh environment:
+
+1. Run `quick-deploy.ps1` once to create the workspace.
+2. Create an Auxiliary table in that workspace from Azure Portal (DCR-based custom table, plan = Auxiliary).
+3. Run deploy again on the same resource group with `-AuxTableOverrideName "<your-aux-table>"`.
+
 Full demo (includes Linux VM, Windows VM, and PaaS telemetry sources):
 
 ```powershell

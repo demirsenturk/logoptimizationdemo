@@ -193,6 +193,23 @@ If `Auxiliary` is enabled in your workspace, you can use a true Auxiliary table 
 
 The deployment script now auto-detects existing Auxiliary tables in the target workspace and reuses one for DCR low-touch routing, so sample signals can land in your real Auxiliary table without changing code.
 
+### Use True Auxiliary Tier in a Fresh Environment
+
+Warning:
+`-AuxTableOverrideName` works only when that table already exists in the target workspace. In a brand-new resource group, there is no workspace yet, so the override is intentionally ignored on first run.
+
+Recommended two-phase flow:
+
+1. Phase 1: Create the workspace and baseline demo resources.
+    - `./quick-deploy.ps1 -NamePrefix "logoptdemo"`
+2. Phase 2: Create an Auxiliary table in that workspace.
+    - In Azure Portal: Log Analytics workspace -> Tables -> Create -> Custom log (DCR-based) -> Plan: Auxiliary.
+    - Example table name: `AuxPortal_CL`.
+3. Phase 3: Rerun deploy and force routing to that table.
+    - `./deploy.ps1 -ResourceGroupName "<same-rg-name>" -Location "germanywestcentral" -AuxTableOverrideName "AuxPortal_CL" -DeployRealVmSource $false -DeployRealWindowsVmSource $false -DeployRealPaaSSources $false`
+4. Verify table plan and ingestion path.
+    - `az monitor log-analytics workspace table show -g "<same-rg-name>" --workspace-name "<workspace-name>" -n AuxPortal_CL --query "{name:name,plan:plan}" -o table`
+
 ## Cleanup
 
 ```powershell
