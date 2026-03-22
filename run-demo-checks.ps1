@@ -27,7 +27,7 @@ function Test-WorkspaceTableExists {
     )
 
     try {
-        az monitor log-analytics workspace table show -g $env:RESOURCE_GROUP --workspace-name $env:WORKSPACE_NAME -n $TableName --query name -o tsv | Out-Null
+        az monitor log-analytics workspace table show -g $env:RESOURCE_GROUP --workspace-name $env:WORKSPACE_NAME -n $TableName --query name -o tsv 2>$null | Out-Null
         return $true
     } catch {
         return $false
@@ -125,16 +125,22 @@ Invoke-WithRetry {
 Write-Host ''
 $auxPortalCount = 0
 $auxSignalsCount = 0
-try { $auxPortalCount = Get-BasicLikeTableCount -TableName 'AuxPortal_CL' -TimeWindow $Timespan } catch {}
-try { $auxSignalsCount = Get-BasicLikeTableCount -TableName 'AuxSignals_CL' -TimeWindow $Timespan } catch {}
+$auxPortalExists = Test-WorkspaceTableExists -TableName 'AuxPortal_CL'
+$auxSignalsExists = Test-WorkspaceTableExists -TableName 'AuxSignals_CL'
+if ($auxPortalExists) {
+    try { $auxPortalCount = Get-BasicLikeTableCount -TableName 'AuxPortal_CL' -TimeWindow $Timespan } catch {}
+}
+if ($auxSignalsExists) {
+    try { $auxSignalsCount = Get-BasicLikeTableCount -TableName 'AuxSignals_CL' -TimeWindow $Timespan } catch {}
+}
 
 $preferredAuxTable = if ($env:AUX_DEMO_TABLE) { $env:AUX_DEMO_TABLE } else { '' }
 $auxTableName = ''
 if (-not [string]::IsNullOrWhiteSpace($preferredAuxTable) -and (Test-WorkspaceTableExists -TableName $preferredAuxTable)) {
     $auxTableName = $preferredAuxTable
-} elseif ($auxPortalCount -ge $auxSignalsCount -and (Test-WorkspaceTableExists -TableName 'AuxPortal_CL')) {
+} elseif ($auxPortalCount -ge $auxSignalsCount -and $auxPortalExists) {
     $auxTableName = 'AuxPortal_CL'
-} elseif (Test-WorkspaceTableExists -TableName 'AuxSignals_CL') {
+} elseif ($auxSignalsExists) {
     $auxTableName = 'AuxSignals_CL'
 } else {
     $auxTableName = 'AuxSignals_CL'
@@ -172,7 +178,7 @@ if ($tablePlan -eq 'Auxiliary') {
     Write-Host ("Auxiliary plan is not active here; {0} is running as Basic fallback." -f $auxTableName) -ForegroundColor Yellow
 }
 
-if ((Test-WorkspaceTableExists -TableName 'AuxPortal_CL') -and (Test-WorkspaceTableExists -TableName 'AuxSignals_CL')) {
+if ($auxPortalExists -and $auxSignalsExists) {
     Write-Host ("Aux table counts in {0}: AuxPortal_CL={1}, AuxSignals_CL={2}" -f $Timespan, $auxPortalCount, $auxSignalsCount) -ForegroundColor Gray
 }
 

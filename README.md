@@ -46,6 +46,22 @@ Deployable demo showcasing **8 cost optimization strategies** for Azure Monitor 
 
 ## Quick Start
 
+### Fast Path (Recommended)
+
+```powershell
+# One-command, synthetic-only deployment with a new RG naming convention
+.\quick-deploy.ps1 -NamePrefix "logoptcustomer"
+
+# Load environment and generate sample data
+. .\.env.ps1
+.\send-sample-data.ps1 -EventCount 120 -TraceCount 240 -AuxCount 180
+
+# Validate
+.\run-demo-checks.ps1 -Timespan P1D
+```
+
+### Full Path (Real VM/PaaS Sources)
+
 ```powershell
 # Deploy everything
 .\deploy.ps1 -ResourceGroupName "rg-lawopt-demo" -Location "germanywestcentral"
@@ -88,6 +104,7 @@ lawopt/
 ├── main.bicep                  # Main deployment template
 ├── main.bicepparam             # Parameter file
 ├── deploy.ps1                  # Deployment script
+├── quick-deploy.ps1            # Simplified one-command synthetic deploy
 ├── send-sample-data.ps1        # Sample data generator
 ├── run-demo-checks.ps1         # Verification checks (synthetic + Linux/Windows/PaaS)
 ├── DEMO-SCRIPT.md              # 10-minute demo walkthrough
