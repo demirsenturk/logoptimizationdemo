@@ -12,6 +12,133 @@ It demonstrates how to reduce logging costs while keeping operational visibility
 
 Use this repo for a live session, a post-session customer handoff, or a self-paced lab.
 
+## Who This Is For
+
+- App teams that already have Log Analytics enabled and want to reduce cost without breaking operations
+- Platform and SRE teams defining shared observability guardrails
+- FinOps stakeholders who need a repeatable optimization model, not a one-time cleanup
+
+## If You Already Have A Workspace (Enterprise Adoption Path)
+
+If your team already runs production logging, use this repository as a pattern library instead of deploying a greenfield environment.
+
+### Step 1: Baseline your current cost and usage
+
+1. Identify top cost-driving tables by billable volume.
+2. Separate high-value operational logs from verbose troubleshooting logs.
+3. Document daily ingestion variability before any plan changes.
+
+Example command:
+
+```powershell
+az monitor log-analytics query --workspace <workspace-id> --analytics-query "Usage | where TimeGenerated > ago(30d) | where IsBillable == true | summarize IngestedGB=round(sum(Quantity)/1024,2) by DataType | order by IngestedGB desc"
+```
+
+Use query patterns from [queries/cost-analysis.kql](queries/cost-analysis.kql).
+
+### Step 2: Classify streams using a simple tier decision model
+
+Use this rule of thumb for each stream:
+
+- Analytics:
+    - Use when data drives active investigations, dashboards, frequent alerting, or rich cross-table analytics.
+- Basic:
+    - Use when data is mainly for ad hoc troubleshooting and queried less frequently.
+- Auxiliary:
+    - Use for very high-volume, low-touch streams where low cost is more important than rich analytics.
+
+Start by moving only one or two candidate streams. Avoid mass migration in the first iteration.
+
+### Step 3: Apply DCR transformations before rerouting
+
+Before changing table plans, reduce ingest volume with DCR transformations:
+
+1. Filter out low-value events.
+2. Project only required columns.
+3. Normalize payload shape for compact ingestion.
+
+Reference implementation: [modules/dcr.bicep](modules/dcr.bicep)
+
+### DCR Rules Cookbook (Beginner Friendly)
+
+Think about a DCR rule as a gate with three actions:
+
+1. Keep: only keep records that are useful.
+2. Shape: keep only columns needed for operations and investigations.
+3. Route: send each stream to the right table plan.
+
+#### Rule pattern A: Keep only actionable severities
+
+- Goal: reduce noisy info/debug traffic.
+- Example approach: keep Warning, Error, Critical and drop low-value informational rows.
+- Typical target: Analytics table for high-value incidents.
+
+#### Rule pattern B: Drop verbose payload columns
+
+- Goal: reduce ingestion size per event.
+- Example approach: remove large text blobs and internal debug payload columns.
+- Typical target: same destination table, lower cost per record.
+
+#### Rule pattern C: Route troubleshooting stream to Basic
+
+- Goal: place less frequently queried logs in lower-cost tier.
+- Example approach: send debug/trace stream into Basic table.
+- Typical target: DebugTraces_CL in this repository pattern.
+
+#### Rule pattern D: Route very high-volume low-touch stream to Auxiliary-ready path
+
+- Goal: keep cost low for telemetry that is rarely explored interactively.
+- Example approach: route compact stream to Auxiliary table when available, otherwise use fallback path.
+- Typical target: AuxSignals_CL pattern in this repository.
+
+### Safe Rollout Pattern For DCR Rule Changes
+
+Use this operational sequence in existing production workspaces:
+
+1. Clone one current stream into a pilot DCR flow for a single app or namespace.
+2. Keep original stream unchanged during pilot window.
+3. Compare for 7-14 days:
+    - ingestion volume
+    - alert fidelity
+    - investigation usability
+4. If results are good, promote rule to shared DCR baseline.
+5. Roll out in waves by app team instead of a big-bang change.
+
+### DCR Anti-Patterns To Avoid
+
+- Moving critical operational logs to cheap tiers before validating incident workflows.
+- Dropping columns without checking existing workbooks and alerts.
+- Changing many streams at once, making impact hard to isolate.
+- Evaluating commitment tiers before DCR and tiering are stabilized.
+
+### Step 4: Pilot in one app or one namespace
+
+1. Route one stream to Basic and one low-touch stream to Auxiliary-ready path.
+2. Keep high-value stream in Analytics.
+3. Compare 7-14 days before/after for ingestion, query success, and alert quality.
+
+### Step 5: Scale with governance
+
+1. Add daily cap and anomaly/noise alerts.
+2. Review retention by data value, not by default settings.
+3. Re-evaluate commitment tier only after DCR + tiering stabilize.
+
+Guardrail references:
+
+- [modules/alerts.bicep](modules/alerts.bicep)
+- [run-demo-checks.ps1](run-demo-checks.ps1)
+
+## Auxiliary Logs Explained For Beginners
+
+Auxiliary is best understood as a low-cost lane for logs you rarely inspect.
+
+- It is useful for high-volume telemetry where occasional retrieval is enough.
+- It is not the first choice for your most interactive operational datasets.
+- In some environments, creating new Auxiliary tables via ARM can be restricted.
+- This repository handles that by falling back to an Auxiliary-ready Basic path so the operating model is still demonstrated.
+
+For production teams, this means you can start optimizing now, even if true Auxiliary provisioning is currently constrained in your tenant or region.
+
 ## Business Outcomes
 
 By the end of the walkthrough, customers can implement:
@@ -96,6 +223,19 @@ Parameters are exposed in deployment to support this conversation:
 - interactiveRetentionDays
 
 Template reference: [main.bicep](main.bicep)
+
+## Migration Checklist For Existing Teams
+
+Use this checklist when adopting patterns from this repository in an existing workspace:
+
+1. Baseline last 30 days ingestion and top tables.
+2. Select candidate streams for Basic or Auxiliary-ready routing.
+3. Implement DCR filter and projection first.
+4. Pilot on limited scope and validate alert/dashboard impact.
+5. Apply retention and export policy by data value class.
+6. Add cap and anomaly guardrails.
+7. Revisit commitment tier decision with post-optimization data.
+8. Roll out to additional app teams in waves.
 
 ## Prerequisites
 
