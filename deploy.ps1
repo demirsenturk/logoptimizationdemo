@@ -60,19 +60,6 @@ Write-Host " Log Analytics Cost Optimization Demo" -ForegroundColor Cyan
 Write-Host "============================================" -ForegroundColor Cyan
 Write-Host ""
 
-$detectedAuxTable = ''
-try {
-    $detectedAuxTable = az monitor log-analytics workspace table list -g $ResourceGroupName --workspace-name $outputs.workspaceName.value --query "[?plan=='Auxiliary'] | [0].name" -o tsv
-} catch {
-    $detectedAuxTable = ''
-}
-
-if ([string]::IsNullOrWhiteSpace($detectedAuxTable)) {
-    $detectedAuxTable = 'AuxSignals_CL'
-}
-
-Write-Host "  Demo Auxiliary table: $detectedAuxTable" -ForegroundColor White
-
 if ([string]::IsNullOrWhiteSpace($VmAdminPassword)) {
     $VmAdminPassword = -join ((48..57) + (65..90) + (97..122) | Get-Random -Count 18 | ForEach-Object {[char]$_}) + '!aA1'
 }
@@ -145,6 +132,21 @@ if ($LASTEXITCODE -ne 0) {
 $outputs = $resultRaw | ConvertFrom-Json
 Write-Host "  Deployment succeeded!" -ForegroundColor Green
 
+$detectedAuxTable = ''
+if (-not [string]::IsNullOrWhiteSpace($auxTableOverrideName)) {
+    $detectedAuxTable = $auxTableOverrideName
+} else {
+    try {
+        $detectedAuxTable = az monitor log-analytics workspace table list -g $ResourceGroupName --workspace-name $outputs.workspaceName.value --query "[?plan=='Auxiliary'] | [0].name" -o tsv
+    } catch {
+        $detectedAuxTable = ''
+    }
+}
+
+if ([string]::IsNullOrWhiteSpace($detectedAuxTable)) {
+    $detectedAuxTable = 'AuxSignals_CL'
+}
+
 # ---- Print Outputs ----
 Write-Host ""
 Write-Host "[4/4] Deployment Outputs:" -ForegroundColor Yellow
@@ -168,6 +170,7 @@ if ($outputs.PSObject.Properties.Name -contains 'realKeyVaultName' -and $outputs
 if ($outputs.PSObject.Properties.Name -contains 'realStorageName' -and $outputs.realStorageName.value) {
     Write-Host "  Real Storage       : $($outputs.realStorageName.value)" -ForegroundColor White
 }
+Write-Host "  Demo Auxiliary table: $detectedAuxTable" -ForegroundColor White
 
 try {
     $auxTables = az monitor log-analytics workspace table list -g $ResourceGroupName --workspace-name $outputs.workspaceName.value --query "[?plan=='Auxiliary'].name" -o tsv

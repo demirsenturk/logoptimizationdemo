@@ -179,8 +179,14 @@ if ((Test-WorkspaceTableExists -TableName 'AuxPortal_CL') -and (Test-WorkspaceTa
 Write-Host ''
 Write-Host '=== Real Source Checks (Linux / Windows / PaaS) ===' -ForegroundColor Cyan
 
-$linuxHeartbeat = Get-AnalyticsCount -Query "Heartbeat | where TimeGenerated > ago(60m) | where Computer startswith 'vm-lawopt-linux' | summarize C=count()"
-$linuxSyslog = Get-AnalyticsCount -Query "Syslog | where TimeGenerated > ago(60m) | where Computer startswith 'vm-lawopt-linux' | summarize C=count()"
+$linuxVmFilter = if ($env:REAL_VM_NAME) {
+    "Computer has '$($env:REAL_VM_NAME)'"
+} else {
+    "Computer startswith 'vm-lawopt'"
+}
+
+$linuxHeartbeat = Get-AnalyticsCount -Query "Heartbeat | where TimeGenerated > ago(60m) | where $linuxVmFilter | summarize C=count()"
+$linuxSyslog = Get-AnalyticsCount -Query "Syslog | where TimeGenerated > ago(60m) | where $linuxVmFilter | summarize C=count()"
 
 if ($env:REAL_VM_NAME) {
     Write-Host ("Linux VM ({0}): Heartbeat={1}, Syslog={2}" -f $env:REAL_VM_NAME, $linuxHeartbeat, $linuxSyslog) -ForegroundColor White
@@ -188,8 +194,14 @@ if ($env:REAL_VM_NAME) {
     Write-Host ("Linux VM: Heartbeat={0}, Syslog={1}" -f $linuxHeartbeat, $linuxSyslog) -ForegroundColor White
 }
 
-$windowsHeartbeat = Get-AnalyticsCount -Query "Heartbeat | where TimeGenerated > ago(60m) | where Computer startswith 'vmwin-lawopt' | summarize C=count()"
-$windowsEvents = Get-AnalyticsCount -Query "Event | where TimeGenerated > ago(60m) | where Computer startswith 'vmwin-lawopt' | summarize C=count()"
+$windowsVmFilter = if ($env:REAL_WINDOWS_VM_NAME) {
+    "Computer has '$($env:REAL_WINDOWS_VM_NAME)'"
+} else {
+    "Computer startswith 'vmwin-lawopt'"
+}
+
+$windowsHeartbeat = Get-AnalyticsCount -Query "Heartbeat | where TimeGenerated > ago(60m) | where $windowsVmFilter | summarize C=count()"
+$windowsEvents = Get-AnalyticsCount -Query "Event | where TimeGenerated > ago(60m) | where $windowsVmFilter | summarize C=count()"
 
 if ($env:REAL_WINDOWS_VM_NAME) {
     Write-Host ("Windows VM ({0}): Heartbeat={1}, Event={2}" -f $env:REAL_WINDOWS_VM_NAME, $windowsHeartbeat, $windowsEvents) -ForegroundColor White

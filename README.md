@@ -2,6 +2,13 @@
 
 Deployable demo showcasing **8 cost optimization strategies** for Azure Monitor Logs, following [Microsoft best practices](https://learn.microsoft.com/en-us/azure/azure-monitor/logs/best-practices-logs#cost-optimization).
 
+## Prerequisites
+
+- Azure subscription with permissions for resource group deployments and RBAC role assignments
+- Azure CLI (`az`) and PowerShell 7 (`pwsh`)
+- Logged in via `az login`
+- For full demo mode: quota for 2 small VMs in the target region
+
 ## What Gets Deployed
 
 | Resource | Purpose |
@@ -54,6 +61,19 @@ Deployable demo showcasing **8 cost optimization strategies** for Azure Monitor 
 
 # Open the Azure Portal and follow DEMO-SCRIPT.md
 ```
+
+## Deployment Profiles
+
+- Full realistic profile:
+    - `-DeployRealVmSource $true -DeployRealWindowsVmSource $true -DeployRealPaaSSources $true`
+    - Includes Linux/Windows VM telemetry and Key Vault/Storage diagnostics.
+- Lightweight synthetic profile:
+    - `-DeployRealVmSource $false -DeployRealWindowsVmSource $false -DeployRealPaaSSources $false`
+    - Fastest setup for dry runs.
+
+## Cloud Shell Testing
+
+After publishing to GitHub, use the Cloud Shell runbook in [docs/CLOUD-SHELL-TEST.md](docs/CLOUD-SHELL-TEST.md).
 
 ## Project Structure
 
