@@ -56,6 +56,20 @@ Use this decision model per stream:
 
 Start small: migrate one or two streams first.
 
+### Log Tier Comparison Table
+
+| Tier | Best for | Query behavior | Cost direction | Example stream in this repo |
+|---|---|---|---|---|
+| Analytics | Mission-critical operations, dashboards, frequent investigations | Rich and frequent interactive queries | Highest | AppEvents_CL |
+| Basic | Troubleshooting logs with occasional access | Simple and less frequent investigations | Lower than Analytics | DebugTraces_CL |
+| Auxiliary | Very high-volume, low-touch telemetry | Rare and lightweight exploration | Lowest path when available | AuxSignals_CL pattern |
+
+Simple decision rule:
+
+1. If a stream is opened daily by ops, keep it in Analytics.
+2. If a stream is mostly for occasional troubleshooting, move to Basic.
+3. If a stream is high-volume and rarely touched, use Auxiliary path.
+
 ## DCR Rules Made Simple
 
 Think of DCR rules as: Keep, Shape, Route.
@@ -94,6 +108,30 @@ Simple guidance:
 2. Then evaluate commitment tier using stable post-optimization usage.
 3. Use retention by data value class.
 4. Export long-term data to storage with lifecycle policies.
+
+### Commitment Tier Playbook
+
+1. Collect at least 2-4 weeks of post-optimization ingestion data.
+2. Calculate p50 and p95 daily ingestion GB.
+3. Choose a commitment tier close to steady-state usage, not peak incident days.
+4. Re-check after major onboarding of new apps or big DCR rule changes.
+
+Do not choose commitment tier before DCR filtering and table tiering stabilize.
+
+### Additional FinOps Practices
+
+1. Weekly cost review:
+    - Top 10 billable tables
+    - New noisy streams
+    - Query usage pattern shifts
+2. Monthly governance review:
+    - Retention by data class
+    - Table tier fit (Analytics vs Basic vs Auxiliary)
+    - Commitment tier right-sizing
+3. Change safety:
+    - Pilot first, then wave rollout
+    - Keep rollback path for DCR changes
+    - Validate with [run-demo-checks.ps1](run-demo-checks.ps1) after each wave
 
 Template references:
 
