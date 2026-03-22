@@ -9,6 +9,12 @@ Deployable demo showcasing **8 cost optimization strategies** for Azure Monitor 
 - Logged in via `az login`
 - For full demo mode: quota for 2 small VMs in the target region
 
+## Security and Privacy
+
+- This repository is designed to avoid committed secrets.
+- Runtime environment values are written to local `.env.ps1` after deployment and are excluded from source control.
+- Use `.env.example.ps1` only as a template.
+
 ## What Gets Deployed
 
 | Resource | Purpose |

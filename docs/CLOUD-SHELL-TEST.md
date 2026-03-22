@@ -25,6 +25,8 @@ git clone https://github.com/demirsenturk/logoptimizationdemo.git
 cd logoptimizationdemo
 ```
 
+If you are testing from a fork, replace the clone URL with your fork path.
+
 ## 3) Deploy Demo
 
 Full demo (includes Linux VM, Windows VM, and PaaS telemetry sources):
@@ -74,3 +76,17 @@ az group delete --name "rg-lawopt-demo-cs" --yes --no-wait
 - If `az` prompts to install an extension, allow it and rerun the command.
 - If Auxiliary creation fallback appears, this only affects ARM-created AuxSignals table plan. Existing Auxiliary tables are still reused automatically.
 - If VM/PaaS telemetry is zero right after deployment, wait and rerun checks after 10 minutes.
+
+## Pre-Publish Safety Check
+
+Run these locally before pushing:
+
+```powershell
+git status -sb
+git ls-files
+```
+
+Confirm all of the following:
+- `.env.ps1` is not tracked.
+- No access tokens or passwords are hardcoded.
+- No personal or tenant-specific values are embedded in docs/scripts.
