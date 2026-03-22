@@ -88,9 +88,38 @@ Write-Host "  Resource group ready." -ForegroundColor Green
 # ---- Optional: detect existing Auxiliary table and reuse it ----
 $auxTableOverrideName = $AuxTableOverrideName
 $effectiveUseAuxiliaryPlan = $UseAuxiliaryPlan
+
+$existingWorkspaceName = ''
+try {
+    $existingWorkspaceName = az monitor log-analytics workspace list -g $ResourceGroupName --query "[0].name" -o tsv
+} catch {
+    $existingWorkspaceName = ''
+}
+
+if (-not [string]::IsNullOrWhiteSpace($auxTableOverrideName)) {
+    if ([string]::IsNullOrWhiteSpace($existingWorkspaceName)) {
+        Write-Host "  AuxTableOverrideName '$auxTableOverrideName' ignored: no existing workspace found in '$ResourceGroupName'." -ForegroundColor Yellow
+        $auxTableOverrideName = ''
+    } else {
+        $overrideExists = $false
+        try {
+            $shown = az monitor log-analytics workspace table show -g $ResourceGroupName --workspace-name $existingWorkspaceName -n $auxTableOverrideName --query name -o tsv 2>$null
+            if (-not [string]::IsNullOrWhiteSpace($shown)) {
+                $overrideExists = $true
+            }
+        } catch {
+            $overrideExists = $false
+        }
+
+        if (-not $overrideExists) {
+            Write-Host "  AuxTableOverrideName '$auxTableOverrideName' ignored: table not found in workspace '$existingWorkspaceName'." -ForegroundColor Yellow
+            $auxTableOverrideName = ''
+        }
+    }
+}
+
 if ([string]::IsNullOrWhiteSpace($auxTableOverrideName)) {
     try {
-        $existingWorkspaceName = az monitor log-analytics workspace list -g $ResourceGroupName --query "[0].name" -o tsv
         if (-not [string]::IsNullOrWhiteSpace($existingWorkspaceName)) {
             $auxTableOverrideName = az monitor log-analytics workspace table list -g $ResourceGroupName --workspace-name $existingWorkspaceName --query "[?plan=='Auxiliary'] | [0].name" -o tsv
         }
