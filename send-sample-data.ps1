@@ -37,6 +37,29 @@ if (-not $env:DCE_ENDPOINT) {
     }
 }
 
+if ([string]::IsNullOrWhiteSpace($env:WORKSPACE_NAME) -or [string]::IsNullOrWhiteSpace($env:RESOURCE_GROUP)) {
+    Write-Error "Missing WORKSPACE_NAME or RESOURCE_GROUP in .env.ps1. Run quick-deploy again, then reload env with: . .\\.env.ps1"
+    exit 1
+}
+
+if ([string]::IsNullOrWhiteSpace($env:DCE_ENDPOINT) -or
+    [string]::IsNullOrWhiteSpace($env:DCR_ANALYTICS_IMMUTABLE_ID) -or
+    [string]::IsNullOrWhiteSpace($env:DCR_BASIC_IMMUTABLE_ID) -or
+    [string]::IsNullOrWhiteSpace($env:DCR_AUXILIARY_IMMUTABLE_ID)) {
+    Write-Error "Missing DCE/DCR values in .env.ps1. Re-run quick-deploy and reload env: . .\\.env.ps1"
+    exit 1
+}
+
+try {
+    $workspaceIdCheck = az monitor log-analytics workspace show -g $env:RESOURCE_GROUP -n $env:WORKSPACE_NAME --query id -o tsv 2>$null
+    if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($workspaceIdCheck)) {
+        throw "Workspace lookup failed"
+    }
+} catch {
+    Write-Error "Workspace from .env.ps1 was not found (stale env). Re-run quick-deploy and then reload env: . .\\.env.ps1"
+    exit 1
+}
+
 Write-Host "============================================" -ForegroundColor Cyan
 Write-Host " Sending Sample Data for Cost Optimization Demo" -ForegroundColor Cyan
 Write-Host "============================================" -ForegroundColor Cyan
@@ -92,16 +115,18 @@ function Wait-DceEndpointReady {
         try {
             [System.Net.Dns]::GetHostAddresses($hostName) | Out-Null
             Write-Host "DCE endpoint DNS is ready: $hostName" -ForegroundColor Green
-            return
+            return $true
         } catch {
             if ($i -eq $MaxAttempts) {
                 Write-Host "DCE endpoint DNS is not ready yet: $hostName" -ForegroundColor Yellow
                 Write-Host "If this is a fresh deployment, wait 2-5 minutes and retry send-sample-data." -ForegroundColor Yellow
-                return
+                return $false
             }
             Start-Sleep -Seconds $DelaySeconds
         }
     }
+
+    return $true
 }
 
 function Invoke-IngestionWithRetry {
@@ -148,7 +173,10 @@ function Invoke-IngestionWithRetry {
 }
 
 Write-Host "Getting access token..." -ForegroundColor Yellow
-Wait-DceEndpointReady -Endpoint $env:DCE_ENDPOINT
+if (-not (Wait-DceEndpointReady -Endpoint $env:DCE_ENDPOINT)) {
+    Write-Error "DCE endpoint is not reachable yet. Stop here to avoid noisy failed batches; retry in 2-5 minutes."
+    exit 1
+}
 
 # ============================================================================
 # DEMO: Send events to Analytics table (DCR will FILTER these)

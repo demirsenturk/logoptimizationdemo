@@ -15,6 +15,19 @@ if (-not $env:WORKSPACE_ID) {
     }
 }
 
+if ([string]::IsNullOrWhiteSpace($env:WORKSPACE_NAME) -or [string]::IsNullOrWhiteSpace($env:RESOURCE_GROUP)) {
+    throw "Missing WORKSPACE_NAME or RESOURCE_GROUP in .env.ps1. Run quick-deploy again, then reload env with: . .\\.env.ps1"
+}
+
+try {
+    $workspaceIdCheck = az monitor log-analytics workspace show -g $env:RESOURCE_GROUP -n $env:WORKSPACE_NAME --query id -o tsv 2>$null
+    if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($workspaceIdCheck)) {
+        throw "Workspace lookup failed"
+    }
+} catch {
+    throw "Workspace from .env.ps1 was not found (stale env). Re-run quick-deploy and reload env: . .\\.env.ps1"
+}
+
 Write-Host '=== Demo Verification Checks ===' -ForegroundColor Cyan
 Write-Host "Workspace: $($env:WORKSPACE_NAME) ($($env:WORKSPACE_ID))" -ForegroundColor Gray
 
@@ -186,6 +199,20 @@ if ($auxPortalExists -and $auxSignalsExists) {
 
 Write-Host ''
 Write-Host '=== Real Source Checks (Linux / Windows / PaaS) ===' -ForegroundColor Cyan
+
+$hasLinuxTarget = -not [string]::IsNullOrWhiteSpace($env:REAL_VM_NAME)
+$hasWindowsTarget = -not [string]::IsNullOrWhiteSpace($env:REAL_WINDOWS_VM_NAME)
+$hasPaaSTarget = (-not [string]::IsNullOrWhiteSpace($env:REAL_KEYVAULT_NAME)) -or (-not [string]::IsNullOrWhiteSpace($env:REAL_STORAGE_NAME))
+
+if (-not ($hasLinuxTarget -or $hasWindowsTarget -or $hasPaaSTarget)) {
+    Write-Host 'Real-source checks skipped: this looks like a synthetic-only deployment profile.' -ForegroundColor Yellow
+    Write-Host 'To enable VM/PaaS checks, deploy with real sources and reload .env.ps1 from that deployment.' -ForegroundColor Gray
+    Write-Host ''
+    Write-Host 'Readout guidance:' -ForegroundColor Cyan
+    Write-Host '- VM heartbeat/event/syslog can take 5-15 minutes after first deployment.' -ForegroundColor Gray
+    Write-Host '- Key Vault and Storage diagnostics appear after activity hits those resources.' -ForegroundColor Gray
+    return
+}
 
 $linuxVmFilter = if ($env:REAL_VM_NAME) {
     "Computer has '$($env:REAL_VM_NAME)'"

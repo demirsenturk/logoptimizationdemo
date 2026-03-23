@@ -30,6 +30,29 @@ cd logoptimizationdemo
 ```
 
 If validation returns zeros at first, wait a few minutes and run checks again.
+If you used `quick-deploy.ps1`, real VM/PaaS checks are skipped by design (synthetic-only profile).
+
+<details>
+<summary>Quick troubleshooting (expand)</summary>
+
+If a command fails with `WorkspaceNotFoundError` or `No such host is known`:
+
+1. Ensure you are inside the repo folder.
+2. Re-run deployment to generate fresh environment values:
+
+```powershell
+.\quick-deploy.ps1 -NamePrefix "logoptdemo"
+. .\.env.ps1
+```
+
+3. Wait 2-5 minutes for DCE DNS propagation, then run:
+
+```powershell
+.\send-sample-data.ps1 -EventCount 120 -TraceCount 240 -AuxCount 180
+.\run-demo-checks.ps1 -Timespan P1D
+```
+
+</details>
 
 ## What You Learn in This Demo
 
@@ -62,6 +85,84 @@ Think of each DCR as three actions:
 
 Demo implementation: [modules/dcr.bicep](modules/dcr.bicep)
 
+### DCR Examples for Linux and Windows VMs
+
+<details>
+<summary>Expand DCR examples and references</summary>
+
+Use these as learning templates for Azure Monitor Agent collection rules.
+
+Linux VM example (Syslog to lower-cost table):
+
+```bicep
+resource dcrLinux 'Microsoft.Insights/dataCollectionRules@2022-06-01' = {
+   name: 'dcr-linux-syslog'
+   location: location
+   properties: {
+      dataSources: {
+         syslog: [
+            {
+               name: 'linuxSyslog'
+               streams: [ 'Microsoft-Syslog' ]
+               facilityNames: [ 'auth', 'daemon', 'syslog' ]
+               logLevels: [ 'Warning', 'Error', 'Critical' ]
+            }
+         ]
+      }
+      dataFlows: [
+         {
+            streams: [ 'Microsoft-Syslog' ]
+            destinations: [ 'law' ]
+            transformKql: 'source | where SeverityLevel <= 4 | project TimeGenerated, Computer, Facility, SeverityLevel, SyslogMessage'
+            outputStream: 'Custom-DebugTraces_CL'
+         }
+      ]
+   }
+}
+```
+
+Windows VM example (Event logs with severity filter):
+
+```bicep
+resource dcrWindows 'Microsoft.Insights/dataCollectionRules@2022-06-01' = {
+   name: 'dcr-windows-events'
+   location: location
+   properties: {
+      dataSources: {
+         windowsEventLogs: [
+            {
+               name: 'windowsEvents'
+               streams: [ 'Microsoft-Event' ]
+               xPathQueries: [
+                  'System!*[System[(Level=1 or Level=2 or Level=3)]]'
+                  'Application!*[System[(Level=1 or Level=2)]]'
+               ]
+            }
+         ]
+      }
+      dataFlows: [
+         {
+            streams: [ 'Microsoft-Event' ]
+            destinations: [ 'law' ]
+            transformKql: 'source | project TimeGenerated, Computer, EventLog, EventLevelName, EventID, RenderedDescription'
+            outputStream: 'Custom-AppEvents_CL'
+         }
+      ]
+   }
+}
+```
+
+References:
+
+- Data Collection Rule overview: https://learn.microsoft.com/azure/azure-monitor/data-collection/data-collection-rule-overview
+- Azure Monitor Agent overview: https://learn.microsoft.com/azure/azure-monitor/agents/azure-monitor-agent-overview
+- VM data collection with AMA and DCR: https://learn.microsoft.com/azure/azure-monitor/vm/data-collection
+
+</details>
+
+<details>
+<summary>Advanced rollout and governance (expand)</summary>
+
 ## If You Already Have a Workspace
 
 You can use this repo as a pattern library without rebuilding your environment.
@@ -75,7 +176,7 @@ You can use this repo as a pattern library without rebuilding your environment.
 Baseline query example:
 
 ```powershell
-az monitor log-analytics query --workspace <workspace-id> --analytics-query "Usage | where TimeGenerated > ago(30d) | where IsBillable == true | summarize IngestedGB=round(sum(Quantity)/1024,2) by DataType | order by IngestedGB desc"
+az monitor log-analytics query --workspace <workspace-id> --analytics-query "Usage | where TimeGenerated > ago(30d) | where IsBillable == true | summarize IngestedMB=round(sum(Quantity),2), IngestedGB=round(sum(Quantity)/1000,3) by DataType | order by IngestedMB desc"
 ```
 
 ## Commitment Tier, Retention, and Governance
@@ -94,11 +195,37 @@ Practical governance cadence:
 2. Monthly: tier fit, retention fit, commitment right-sizing.
 3. After each change: rerun validation.
 
+</details>
+
 ## Auxiliary Table Note
 
 Some tenants or regions may not allow Auxiliary table creation through ARM in this flow.
 
 In that case, the demo uses an Auxiliary-ready fallback path on Basic so the architecture still works.
+
+### Learn Auxiliary Logs (Microsoft Guidance)
+
+<details>
+<summary>Expand Auxiliary learning path and Microsoft links</summary>
+
+If Auxiliary is not deployed automatically in your tenant, use this learning path:
+
+1. Understand table plans and trade-offs.
+2. Create a DCR-based custom table and set plan to Auxiliary.
+3. Send a low-touch stream to that table through a DCR.
+4. Validate the table plan and query behavior in Log Analytics.
+
+Microsoft Learn links:
+
+- Log Analytics table plans: https://learn.microsoft.com/azure/azure-monitor/logs/data-platform-logs#table-plans
+- Create custom table (Auxiliary): https://learn.microsoft.com/azure/azure-monitor/logs/create-custom-table-auxiliary
+- Basic logs configuration (fallback pattern): https://learn.microsoft.com/azure/azure-monitor/logs/basic-logs-configure
+- DCR transformations: https://learn.microsoft.com/azure/azure-monitor/data-collection/data-collection-transformations
+
+</details>
+
+<details>
+<summary>Known limitations and manual Auxiliary setup (expand)</summary>
 
 ## Known Limitations (Demo Context)
 
@@ -126,6 +253,11 @@ az monitor log-analytics workspace table show -g "<existing-rg>" --workspace-nam
 
 Expected result: `plan` is `Auxiliary`.
 
+</details>
+
+<details>
+<summary>Useful files and full deployment (expand)</summary>
+
 ## Useful Files
 
 1. Deployment script: [deploy.ps1](deploy.ps1)
@@ -146,13 +278,16 @@ Expected result: `plan` is `Auxiliary`.
 .\run-demo-checks.ps1 -Timespan P1D
 ```
 
+</details>
+
 ## Cleanup
 
 ```powershell
 .\cleanup-demo.ps1 -Force
 ```
 
-## Microsoft Learn References
+<details>
+<summary>Microsoft Learn references (expand)</summary>
 
 1. Azure Monitor Logs cost best practices:
    https://learn.microsoft.com/azure/azure-monitor/logs/best-practices-logs#cost-optimization
@@ -170,3 +305,5 @@ Expected result: `plan` is `Auxiliary`.
    https://learn.microsoft.com/azure/azure-monitor/logs/create-custom-table-auxiliary
 8. DCR transformations and cost:
    https://learn.microsoft.com/azure/azure-monitor/data-collection/data-collection-transformations#cost-for-transformations
+
+</details>
