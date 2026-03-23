@@ -286,24 +286,24 @@ Expected result: `plan` is `Auxiliary`.
 .\cleanup-demo.ps1 -Force
 ```
 
-<details>
-<summary>Microsoft Learn references (expand)</summary>
+## Microsoft Learn Quick Reference
 
-1. Azure Monitor Logs cost best practices:
-   https://learn.microsoft.com/azure/azure-monitor/logs/best-practices-logs#cost-optimization
-2. Cost optimization in Azure Monitor:
-   https://learn.microsoft.com/azure/azure-monitor/fundamentals/best-practices-cost
-3. Azure Monitor cost and usage:
-   https://learn.microsoft.com/azure/azure-monitor/fundamentals/cost-usage
-4. Logs cost calculations and options:
-   https://learn.microsoft.com/azure/azure-monitor/logs/cost-logs
-5. Log Analytics table plans:
-   https://learn.microsoft.com/azure/azure-monitor/logs/data-platform-logs#table-plans
-6. Basic Logs configuration:
-   https://learn.microsoft.com/azure/azure-monitor/logs/basic-logs-configure
-7. Auxiliary custom table:
-   https://learn.microsoft.com/azure/azure-monitor/logs/create-custom-table-auxiliary
-8. DCR transformations and cost:
-   https://learn.microsoft.com/azure/azure-monitor/data-collection/data-collection-transformations#cost-for-transformations
+Use this section as a fast lookup during deployment and demo prep.
 
-</details>
+Cost and FinOps guidance:
+
+- Azure Monitor Logs cost optimization best practices: https://learn.microsoft.com/azure/azure-monitor/logs/best-practices-logs#cost-optimization
+- Cost optimization in Azure Monitor (platform guidance): https://learn.microsoft.com/azure/azure-monitor/fundamentals/best-practices-cost
+- Azure Monitor cost and usage: https://learn.microsoft.com/azure/azure-monitor/fundamentals/cost-usage
+- Logs cost model and pricing options: https://learn.microsoft.com/azure/azure-monitor/logs/cost-logs
+
+Table plans and tiering:
+
+- Log Analytics table plans (Analytics, Basic, Auxiliary): https://learn.microsoft.com/azure/azure-monitor/logs/data-platform-logs#table-plans
+- Basic Logs configuration: https://learn.microsoft.com/azure/azure-monitor/logs/basic-logs-configure
+- Create Auxiliary custom table: https://learn.microsoft.com/azure/azure-monitor/logs/create-custom-table-auxiliary
+
+DCR and ingestion shaping:
+
+- DCR transformations overview: https://learn.microsoft.com/azure/azure-monitor/data-collection/data-collection-transformations
+- DCR transformation cost details: https://learn.microsoft.com/azure/azure-monitor/data-collection/data-collection-transformations#cost-for-transformations
