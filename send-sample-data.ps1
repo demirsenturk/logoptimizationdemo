@@ -28,13 +28,11 @@ $ErrorActionPreference = "Stop"
 $envFilePath = Join-Path $PSScriptRoot '.env.ps1'
 
 # ---- Load environment ----
-if (-not $env:DCE_ENDPOINT) {
-    if (Test-Path $envFilePath) {
-        . $envFilePath
-    } else {
-        Write-Error "Run deploy.ps1 first, then: . .\.env.ps1"
-        exit 1
-    }
+if (Test-Path $envFilePath) {
+    . $envFilePath
+} elseif (-not $env:DCE_ENDPOINT) {
+    Write-Error "Run deploy.ps1 first, then: . .\.env.ps1"
+    exit 1
 }
 
 if ([string]::IsNullOrWhiteSpace($env:WORKSPACE_NAME) -or [string]::IsNullOrWhiteSpace($env:RESOURCE_GROUP)) {
@@ -63,6 +61,8 @@ try {
 Write-Host "============================================" -ForegroundColor Cyan
 Write-Host " Sending Sample Data for Cost Optimization Demo" -ForegroundColor Cyan
 Write-Host "============================================" -ForegroundColor Cyan
+Write-Host "Workspace: $($env:WORKSPACE_NAME)" -ForegroundColor Gray
+Write-Host "Resource group: $($env:RESOURCE_GROUP)" -ForegroundColor Gray
 
 # ---- Token + resilient ingestion helpers ----
 function Get-MonitorHeaders {
@@ -362,6 +362,8 @@ if ($failedBatches -gt 0) {
 }
 
 Write-Host " Data generation complete!" -ForegroundColor Green
-Write-Host " Wait ~5 minutes for data to appear in Log Analytics" -ForegroundColor Yellow
-Write-Host " Then run the KQL queries from queries/ folder to analyze costs" -ForegroundColor Yellow
+Write-Host " Wait 5-10 minutes for data to appear in Log Analytics and Usage." -ForegroundColor Yellow
+Write-Host " Then run: .\run-demo-checks.ps1 -Timespan P1D" -ForegroundColor Yellow
+Write-Host " If the first validation still shows zeros without errors, Log Analytics is usually still indexing the new records." -ForegroundColor Yellow
+Write-Host " After counts appear, run the KQL queries from queries/ to analyze costs." -ForegroundColor Yellow
 Write-Host "============================================" -ForegroundColor Cyan

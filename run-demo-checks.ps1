@@ -7,12 +7,10 @@ $ErrorActionPreference = 'Stop'
 
 $envFilePath = Join-Path $PSScriptRoot '.env.ps1'
 
-if (-not $env:WORKSPACE_ID) {
-    if (Test-Path $envFilePath) {
-        . $envFilePath
-    } else {
-        throw "Missing WORKSPACE_ID. Run deploy script first."
-    }
+if (Test-Path $envFilePath) {
+    . $envFilePath
+} elseif (-not $env:WORKSPACE_ID) {
+    throw "Missing WORKSPACE_ID. Run deploy script first."
 }
 
 if ([string]::IsNullOrWhiteSpace($env:WORKSPACE_NAME) -or [string]::IsNullOrWhiteSpace($env:RESOURCE_GROUP)) {
@@ -30,6 +28,7 @@ try {
 
 Write-Host '=== Demo Verification Checks ===' -ForegroundColor Cyan
 Write-Host "Workspace: $($env:WORKSPACE_NAME) ($($env:WORKSPACE_ID))" -ForegroundColor Gray
+Write-Host "Resource group: $($env:RESOURCE_GROUP)" -ForegroundColor Gray
 
 function Get-LogAnalyticsToken {
     az account get-access-token --resource "https://api.loganalytics.io" --query accessToken -o tsv
@@ -110,31 +109,32 @@ function Get-AnalyticsCount {
 # Analytics query endpoint works for Analytics tables and Usage.
 Write-Host ''
 Write-Host '[1/4] Analytics table check (AppEvents_CL)' -ForegroundColor Yellow
-Invoke-WithRetry {
-    az monitor log-analytics query --workspace $env:WORKSPACE_ID --analytics-query "AppEvents_CL | where TimeGenerated > ago(60m) | summarize AppEventsCount=count()" -o table
-} | Out-Host
+$appEventsCount = Get-AnalyticsCount -Query "AppEvents_CL | where TimeGenerated > ago(60m) | summarize C=count()"
+if ($appEventsCount -gt 0) {
+    Write-Host ("AppEventsCount: {0}" -f $appEventsCount) -ForegroundColor Green
+} else {
+    Write-Host 'AppEventsCount: 0' -ForegroundColor Yellow
+}
 
 Write-Host ''
 Write-Host '[2/4] Billable usage by table (Usage)' -ForegroundColor Yellow
-Invoke-WithRetry {
+$usageOutput = Invoke-WithRetry {
     az monitor log-analytics query --workspace $env:WORKSPACE_ID --analytics-query "Usage | where TimeGenerated > ago(1d) | where IsBillable == true | summarize IngestedMB=round(sum(Quantity),2) by DataType | sort by IngestedMB desc | take 10" -o table
-} | Out-Host
+}
+if ([string]::IsNullOrWhiteSpace(($usageOutput | Out-String).Trim())) {
+    Write-Host 'No billable Usage rows are visible yet. This usually lags record ingestion by several minutes.' -ForegroundColor Yellow
+} else {
+    $usageOutput | Out-Host
+}
 
 # Basic/Auxiliary tables require /search API, not /query.
 Write-Host ''
 Write-Host '[3/4] Basic/Auxiliary-compatible check via /search API (DebugTraces_CL)' -ForegroundColor Yellow
-Invoke-WithRetry {
-    $token = Get-LogAnalyticsToken
-    $headers = @{ Authorization = "Bearer $token"; 'Content-Type' = 'application/json' }
-    $uri = "https://api.loganalytics.io/v1/workspaces/$($env:WORKSPACE_ID)/search"
-    $body = @{ query = "DebugTraces_CL | summarize DebugTracesCount=count()"; timespan = $Timespan } | ConvertTo-Json
-    $resp = Invoke-RestMethod -Method Post -Uri $uri -Headers $headers -Body $body
-    $rows = $resp.tables.rows
-    if ($rows.Count -gt 0) {
-        Write-Host ("DebugTracesCount: {0}" -f $rows[0][0]) -ForegroundColor Green
-    } else {
-        Write-Host 'DebugTracesCount: 0' -ForegroundColor Yellow
-    }
+$debugTracesCount = Get-BasicLikeTableCount -TableName 'DebugTraces_CL' -TimeWindow $Timespan
+if ($debugTracesCount -gt 0) {
+    Write-Host ("DebugTracesCount: {0}" -f $debugTracesCount) -ForegroundColor Green
+} else {
+    Write-Host 'DebugTracesCount: 0' -ForegroundColor Yellow
 }
 
 Write-Host ''
@@ -161,18 +161,16 @@ if (-not [string]::IsNullOrWhiteSpace($preferredAuxTable) -and (Test-WorkspaceTa
     $auxTableName = 'AuxSignals_CL'
 }
 Write-Host "[4/4] Low-touch stream check via /search API ($auxTableName)" -ForegroundColor Yellow
-Invoke-WithRetry {
-    $token = Get-LogAnalyticsToken
-    $headers = @{ Authorization = "Bearer $token"; 'Content-Type' = 'application/json' }
-    $uri = "https://api.loganalytics.io/v1/workspaces/$($env:WORKSPACE_ID)/search"
-    $body = @{ query = "$auxTableName | summarize AuxSignalsCount=count()"; timespan = $Timespan } | ConvertTo-Json
-    $resp = Invoke-RestMethod -Method Post -Uri $uri -Headers $headers -Body $body
-    $rows = $resp.tables.rows
-    if ($rows.Count -gt 0) {
-        Write-Host ("AuxSignalsCount: {0}" -f $rows[0][0]) -ForegroundColor Green
-    } else {
-        Write-Host 'AuxSignalsCount: 0' -ForegroundColor Yellow
-    }
+$auxVisibleCount = 0
+try {
+    $auxVisibleCount = Get-BasicLikeTableCount -TableName $auxTableName -TimeWindow $Timespan
+} catch {
+    $auxVisibleCount = 0
+}
+if ($auxVisibleCount -gt 0) {
+    Write-Host ("AuxSignalsCount: {0}" -f $auxVisibleCount) -ForegroundColor Green
+} else {
+    Write-Host 'AuxSignalsCount: 0' -ForegroundColor Yellow
 }
 
 Write-Host ''
@@ -195,6 +193,17 @@ if ($tablePlan -eq 'Auxiliary') {
 
 if ($auxPortalExists -and $auxSignalsExists) {
     Write-Host ("Aux table counts in {0}: AuxPortal_CL={1}, AuxSignals_CL={2}" -f $Timespan, $auxPortalCount, $auxSignalsCount) -ForegroundColor Gray
+}
+
+Write-Host ''
+Write-Host 'Synthetic data readiness:' -ForegroundColor Cyan
+if (($appEventsCount + $debugTracesCount + $auxVisibleCount) -eq 0) {
+    Write-Host 'No synthetic demo data is queryable yet.' -ForegroundColor Yellow
+    Write-Host 'If you just ran send-sample-data, this is usually normal indexing delay rather than a failure.' -ForegroundColor Yellow
+    Write-Host 'Wait 5-10 minutes and rerun: .\run-demo-checks.ps1 -Timespan P1D' -ForegroundColor Gray
+} else {
+    Write-Host 'Synthetic demo data is visible in the workspace.' -ForegroundColor Green
+    Write-Host ("Visible counts: AppEvents={0}, DebugTraces={1}, LowTouch={2}" -f $appEventsCount, $debugTracesCount, $auxVisibleCount) -ForegroundColor Gray
 }
 
 Write-Host ''

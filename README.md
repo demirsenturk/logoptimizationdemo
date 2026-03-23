@@ -19,7 +19,7 @@ cd logoptimizationdemo
 # 2) Deploy synthetic demo
 .\quick-deploy.ps1 -NamePrefix "logoptdemo"
 
-# 3) Load environment values
+# 3) Load fresh environment values for this repo
 . .\.env.ps1
 
 # 4) Send sample data
@@ -29,7 +29,9 @@ cd logoptimizationdemo
 .\run-demo-checks.ps1 -Timespan P1D
 ```
 
-If validation returns zeros at first, wait a few minutes and run checks again.
+The scripts also reload the repo-local `.env.ps1` automatically, but sourcing it once keeps the shell aligned with the latest deployment.
+
+If validation returns zeros at first, wait 5-10 minutes and run checks again.
 If you used `quick-deploy.ps1`, real VM/PaaS checks are skipped by design (synthetic-only profile).
 
 <details>
@@ -45,12 +47,16 @@ If a command fails with `WorkspaceNotFoundError` or `No such host is known`:
 . .\.env.ps1
 ```
 
+If the deployment output and later checks mention different workspaces or resource groups, source `.env.ps1` again before sending data.
+
 3. Wait 2-5 minutes for DCE DNS propagation, then run:
 
 ```powershell
 .\send-sample-data.ps1 -EventCount 120 -TraceCount 240 -AuxCount 180
 .\run-demo-checks.ps1 -Timespan P1D
 ```
+
+If `run-demo-checks.ps1` shows zero counts right after a successful send, that usually means Log Analytics is still indexing fresh data.
 
 If `send-sample-data.ps1` reports monitor ingestion token errors in Cloud Shell:
 
@@ -299,20 +305,36 @@ Expected result: `plan` is `Auxiliary`.
 
 Use this section as a fast lookup during deployment and demo prep.
 
-Cost and FinOps guidance:
+### Cost and FinOps guidance
 
-- Azure Monitor Logs cost optimization best practices: https://learn.microsoft.com/azure/azure-monitor/logs/best-practices-logs#cost-optimization
-- Cost optimization in Azure Monitor (platform guidance): https://learn.microsoft.com/azure/azure-monitor/fundamentals/best-practices-cost
-- Azure Monitor cost and usage: https://learn.microsoft.com/azure/azure-monitor/fundamentals/cost-usage
-- Logs cost model and pricing options: https://learn.microsoft.com/azure/azure-monitor/logs/cost-logs
+| Topic | Quick link |
+|---|---|
+| Cost optimization best practices | [Azure Monitor Logs cost optimization][ms-cost-best-practices] |
+| Platform cost guidance | [Cost optimization in Azure Monitor][ms-cost-platform] |
+| Cost and usage model | [Azure Monitor cost and usage][ms-cost-usage] |
+| Pricing model details | [Logs cost model and pricing options][ms-cost-pricing] |
 
-Table plans and tiering:
+### Table plans and tiering
 
-- Log Analytics table plans (Analytics, Basic, Auxiliary): https://learn.microsoft.com/azure/azure-monitor/logs/data-platform-logs#table-plans
-- Basic Logs configuration: https://learn.microsoft.com/azure/azure-monitor/logs/basic-logs-configure
-- Create Auxiliary custom table: https://learn.microsoft.com/azure/azure-monitor/logs/create-custom-table-auxiliary
+| Topic | Quick link |
+|---|---|
+| Table plans overview | [Analytics, Basic, and Auxiliary plans][ms-table-plans] |
+| Basic Logs setup | [Basic Logs configuration][ms-basic-config] |
+| Auxiliary table creation | [Create Auxiliary custom table][ms-aux-create] |
 
-DCR and ingestion shaping:
+### DCR and ingestion shaping
 
-- DCR transformations overview: https://learn.microsoft.com/azure/azure-monitor/data-collection/data-collection-transformations
-- DCR transformation cost details: https://learn.microsoft.com/azure/azure-monitor/data-collection/data-collection-transformations#cost-for-transformations
+| Topic | Quick link |
+|---|---|
+| Transformation fundamentals | [DCR transformations overview][ms-dcr-overview] |
+| Transformation pricing | [DCR transformation cost details][ms-dcr-cost] |
+
+[ms-cost-best-practices]: https://learn.microsoft.com/azure/azure-monitor/logs/best-practices-logs#cost-optimization
+[ms-cost-platform]: https://learn.microsoft.com/azure/azure-monitor/fundamentals/best-practices-cost
+[ms-cost-usage]: https://learn.microsoft.com/azure/azure-monitor/fundamentals/cost-usage
+[ms-cost-pricing]: https://learn.microsoft.com/azure/azure-monitor/logs/cost-logs
+[ms-table-plans]: https://learn.microsoft.com/azure/azure-monitor/logs/data-platform-logs#table-plans
+[ms-basic-config]: https://learn.microsoft.com/azure/azure-monitor/logs/basic-logs-configure
+[ms-aux-create]: https://learn.microsoft.com/azure/azure-monitor/logs/create-custom-table-auxiliary
+[ms-dcr-overview]: https://learn.microsoft.com/azure/azure-monitor/data-collection/data-collection-transformations
+[ms-dcr-cost]: https://learn.microsoft.com/azure/azure-monitor/data-collection/data-collection-transformations#cost-for-transformations

@@ -244,6 +244,7 @@ $envFile = @"
 `$env:REAL_STORAGE_CONTAINER = "$($outputs.realStorageContainerName.value)"
 "@
 $envFile | Out-File -FilePath $envFilePath -Encoding utf8
+. $envFilePath
 
 # ---- Grant ingestion permissions on all DCRs for current signed-in user ----
 Write-Host "Configuring DCR ingestion permissions..." -ForegroundColor Yellow
@@ -259,5 +260,6 @@ foreach ($scopeId in $dcrScopeIds) {
 }
 
 Write-Host "Environment variables saved to .env.ps1" -ForegroundColor Green
+Write-Host "Current shell refreshed from .env.ps1 for this deployment." -ForegroundColor Green
 Write-Host "Run: . .\.env.ps1  then  .\send-sample-data.ps1" -ForegroundColor Yellow
 Write-Host ""

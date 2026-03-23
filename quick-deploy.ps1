@@ -31,7 +31,7 @@ Write-Host "Resource group (isolated naming): $resourceGroupName" -ForegroundCol
 
 Write-Host "" 
 Write-Host "Copy/paste commands (run one by one):" -ForegroundColor Yellow
-Write-Host ". ./.env.ps1" -ForegroundColor White
+Write-Host ". ./.env.ps1    # refresh this shell to the latest deployment in this repo" -ForegroundColor White
 Write-Host "pwsh ./send-sample-data.ps1 -EventCount 120 -TraceCount 240 -AuxCount 180" -ForegroundColor White
 Write-Host "pwsh ./run-demo-checks.ps1 -Timespan P1D" -ForegroundColor White
 Write-Host "pwsh ./cleanup-demo.ps1" -ForegroundColor White
