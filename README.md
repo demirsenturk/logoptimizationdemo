@@ -12,16 +12,20 @@ It shows a practical FinOps approach:
 ## Start Here (10-minute flow)
 
 ```powershell
-# 1) Deploy synthetic demo
+# 1) Clone repo and move into folder
+git clone https://github.com/demirsenturk/logoptimizationdemo.git
+cd logoptimizationdemo
+
+# 2) Deploy synthetic demo
 .\quick-deploy.ps1 -NamePrefix "logoptdemo"
 
-# 2) Load environment values
+# 3) Load environment values
 . .\.env.ps1
 
-# 3) Send sample data
+# 4) Send sample data
 .\send-sample-data.ps1 -EventCount 120 -TraceCount 240 -AuxCount 180
 
-# 4) Validate
+# 5) Validate
 .\run-demo-checks.ps1 -Timespan P1D
 ```
 
@@ -95,6 +99,12 @@ Practical governance cadence:
 Some tenants or regions may not allow Auxiliary table creation through ARM in this flow.
 
 In that case, the demo uses an Auxiliary-ready fallback path on Basic so the architecture still works.
+
+## Known Limitations (Demo Context)
+
+- Real VM and PaaS telemetry can take time to appear in some environments.
+- Auxiliary table creation through ARM can be unavailable in some regions/tenants; Basic fallback is used automatically.
+- Storage diagnostics warm-up can be affected by data-plane network/RBAC settings on the storage account.
 
 ### Create Auxiliary Manually in Portal
 

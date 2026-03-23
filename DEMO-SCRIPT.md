@@ -87,7 +87,7 @@ If asked about Auxiliary:
 
 ### 11:00-12:30 - Real Telemetry (Not Synthetic)
 Say:
-"This demo is not only seeded data. We also ingest from real Azure resources via AMA and diagnostics."
+"Synthetic streams keep this demo deterministic, and real Azure resources validate the same production pattern via AMA and diagnostics."
 
 Show:
 1. `run-demo-checks.ps1` output for Linux VM (Heartbeat, Syslog)
@@ -96,6 +96,9 @@ Show:
 
 Point:
 "Synthetic streams make the timing deterministic, while real resources prove this architecture works in production patterns."
+
+Fallback line (if real-source counts are still zero during short sessions):
+"Live VM/PaaS telemetry can be delayed; the architecture and routing are already validated, and seeded streams are used to keep the session reliable."
 
 ### 12:30-13:45 - Retention + Export Tiering
 Say:
