@@ -52,6 +52,15 @@ If a command fails with `WorkspaceNotFoundError` or `No such host is known`:
 .\run-demo-checks.ps1 -Timespan P1D
 ```
 
+If `send-sample-data.ps1` reports monitor ingestion token errors in Cloud Shell:
+
+```powershell
+az logout
+az login --use-device-code
+az account set --subscription <subscription-id>
+az account get-access-token --resource https://monitor.azure.com --query accessToken -o tsv
+```
+
 </details>
 
 ## What You Learn in This Demo

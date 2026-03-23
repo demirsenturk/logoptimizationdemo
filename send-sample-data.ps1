@@ -75,6 +75,14 @@ function Get-MonitorHeaders {
 
     if ([string]::IsNullOrWhiteSpace($token)) {
         try {
+            $token = az account get-access-token --resource "https://monitor.azure.com" --query accessToken -o tsv 2>$null
+        } catch {
+            $token = ''
+        }
+    }
+
+    if ([string]::IsNullOrWhiteSpace($token)) {
+        try {
             $token = az account get-access-token --scope "https://monitor.azure.com//.default" --query accessToken -o tsv 2>$null
         } catch {
             $token = ''
@@ -82,7 +90,7 @@ function Get-MonitorHeaders {
     }
 
     if ([string]::IsNullOrWhiteSpace($token)) {
-        throw "Could not acquire monitor ingestion token. In Cloud Shell, run: az logout ; az login --scope https://monitor.azure.com//.default"
+        throw "Could not acquire monitor ingestion token. Fix: az logout ; az login --use-device-code ; az account set --subscription <subscription-id> ; az account get-access-token --resource https://monitor.azure.com --query accessToken -o tsv"
     }
 
     return @{
@@ -178,6 +186,16 @@ if (-not (Wait-DceEndpointReady -Endpoint $env:DCE_ENDPOINT)) {
     exit 1
 }
 
+try {
+    $null = Get-MonitorHeaders
+    Write-Host "Monitor ingestion token acquired." -ForegroundColor Green
+} catch {
+    Write-Error $_.Exception.Message
+    exit 1
+}
+
+$failedBatches = 0
+
 # ============================================================================
 # DEMO: Send events to Analytics table (DCR will FILTER these)
 # - Sends all severities, but DCR transformation drops Info/Debug
@@ -226,6 +244,7 @@ for ($batch = 0; $batch -lt $totalBatches; $batch++) {
         $sentCount += $batchCount
         Write-Host "  Batch $($batch+1)/$totalBatches sent ($sentCount/$EventCount events)" -ForegroundColor Green
     } catch {
+        $failedBatches++
         Write-Host "  Batch $($batch+1) failed: $($_.Exception.Message)" -ForegroundColor Red
     }
     Start-Sleep -Milliseconds 200
@@ -278,6 +297,7 @@ for ($batch = 0; $batch -lt $totalBatches; $batch++) {
         $sentCount += $batchCount
         Write-Host "  Batch $($batch+1)/$totalBatches sent ($sentCount/$TraceCount traces)" -ForegroundColor Green
     } catch {
+        $failedBatches++
         Write-Host "  Batch $($batch+1) failed: $($_.Exception.Message)" -ForegroundColor Red
     }
     Start-Sleep -Milliseconds 200
@@ -324,6 +344,7 @@ if (-not $env:DCR_AUXILIARY_IMMUTABLE_ID) {
             $sentCount += $batchCount
             Write-Host "  Batch $($batch+1)/$totalBatches sent ($sentCount/$AuxCount aux signals)" -ForegroundColor Green
         } catch {
+            $failedBatches++
             Write-Host "  Batch $($batch+1) failed: $($_.Exception.Message)" -ForegroundColor Red
         }
         Start-Sleep -Milliseconds 200
@@ -332,6 +353,14 @@ if (-not $env:DCR_AUXILIARY_IMMUTABLE_ID) {
 
 Write-Host ""
 Write-Host "============================================" -ForegroundColor Cyan
+if ($failedBatches -gt 0) {
+    Write-Host " Data generation finished with errors." -ForegroundColor Yellow
+    Write-Host " Failed batches: $failedBatches" -ForegroundColor Yellow
+    Write-Host " Resolve auth/network issues and retry send-sample-data before running checks." -ForegroundColor Yellow
+    Write-Host "============================================" -ForegroundColor Cyan
+    exit 1
+}
+
 Write-Host " Data generation complete!" -ForegroundColor Green
 Write-Host " Wait ~5 minutes for data to appear in Log Analytics" -ForegroundColor Yellow
 Write-Host " Then run the KQL queries from queries/ folder to analyze costs" -ForegroundColor Yellow
