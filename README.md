@@ -164,6 +164,28 @@ Some environments may restrict creating new Auxiliary tables via ARM.
 - This repo falls back to an Auxiliary-ready path so the FinOps model still works.
 - If an Auxiliary table already exists, deployment can reuse it.
 
+### Enable Auxiliary Manually (Portal)
+
+If your deployment falls back to Basic for `AuxSignals_CL`, use this quick portal flow:
+
+1. Open Azure Portal -> Log Analytics workspace -> Tables.
+2. Create a custom log table (DCR-based).
+3. Set table plan to Auxiliary.
+4. Use table name `AuxPortal_CL` (or your own naming standard).
+5. Re-run deployment and point routing to that table:
+
+```powershell
+.\deploy.ps1 -ResourceGroupName "<existing-rg>" -Location "germanywestcentral" -AuxTableOverrideName "AuxPortal_CL" -DeployRealVmSource $false -DeployRealWindowsVmSource $false -DeployRealPaaSSources $false
+```
+
+6. Verify plan:
+
+```powershell
+az monitor log-analytics workspace table show -g "<existing-rg>" --workspace-name "<workspace-name>" -n AuxPortal_CL --query "{name:name,plan:plan}" -o table
+```
+
+Expected result: `plan` shows `Auxiliary`.
+
 ## Full Deployment Option
 
 ```powershell
