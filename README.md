@@ -1,178 +1,108 @@
 # Azure Monitor Logs FinOps Showcase
 
-This repository is a simple, practical guide to optimize Azure Monitor Logs costs with Microsoft best practices.
+This repository is a beginner-friendly demo for Microsoft Azure Monitor Logs cost optimization.
 
-It focuses on four levers:
+It shows a practical FinOps approach:
 
-1. DCR filtering and transformation (ingest less).
-2. Table tiering (Analytics, Basic, Auxiliary-ready path).
-3. Retention and export (store smart).
-4. Guardrails (daily cap, anomaly, noisy table alerts).
+1. Ingest less with DCR filtering and projection.
+2. Use the right table tier (Analytics, Basic, Auxiliary path).
+3. Control retention and long-term storage cost.
+4. Keep guardrails with alerts and regular reviews.
 
-## Quick Start (Demo Environment)
+## Start Here (10-minute flow)
 
 ```powershell
-# Deploy synthetic demo
+# 1) Deploy synthetic demo
 .\quick-deploy.ps1 -NamePrefix "logoptdemo"
 
-# Load environment variables
+# 2) Load environment values
 . .\.env.ps1
 
-# Send sample data
+# 3) Send sample data
 .\send-sample-data.ps1 -EventCount 120 -TraceCount 240 -AuxCount 180
 
-# Verify
+# 4) Validate
 .\run-demo-checks.ps1 -Timespan P1D
 ```
 
-## Already Have A Workspace? Start Here
+If validation returns zeros at first, wait a few minutes and run checks again.
 
-You do not need to rebuild everything. Use this repo as a pattern library.
+## What You Learn in This Demo
+
+1. DCR rules reduce ingestion volume before billing.
+2. Basic and Auxiliary paths are used for lower-value or low-touch logs.
+3. Analytics is kept for critical operational logs.
+4. Retention and export are used for long-term cost control.
+
+## Log Tiering (Simple)
+
+| Tier | Use it for | Cost direction | Demo table |
+|---|---|---|---|
+| Analytics | Critical operations and frequent investigations | Highest | AppEvents_CL |
+| Basic | Troubleshooting logs queried less often | Lower | DebugTraces_CL |
+| Auxiliary | High-volume, low-touch telemetry | Lowest path when available | AuxSignals_CL pattern |
+
+Quick decision rule:
+
+1. Daily operational stream -> Analytics.
+2. Occasional troubleshooting stream -> Basic.
+3. Rarely used high-volume stream -> Auxiliary path.
+
+## DCR Rules (Plain Language)
+
+Think of each DCR as three actions:
+
+1. Keep only useful records.
+2. Shape records by removing low-value columns.
+3. Route records to the right tier.
+
+Demo implementation: [modules/dcr.bicep](modules/dcr.bicep)
+
+## If You Already Have a Workspace
+
+You can use this repo as a pattern library without rebuilding your environment.
 
 1. Baseline current cost drivers.
-2. Apply DCR rules to reduce volume first.
-3. Move selected streams to the right tier.
+2. Apply DCR optimization first.
+3. Move selected streams to better tiers.
 4. Validate for 1-2 weeks.
 5. Roll out in waves.
 
-Baseline example:
+Baseline query example:
 
 ```powershell
 az monitor log-analytics query --workspace <workspace-id> --analytics-query "Usage | where TimeGenerated > ago(30d) | where IsBillable == true | summarize IngestedGB=round(sum(Quantity)/1024,2) by DataType | order by IngestedGB desc"
 ```
 
-Reference queries: [queries/cost-analysis.kql](queries/cost-analysis.kql)
+## Commitment Tier, Retention, and Governance
 
-## Tiering Made Simple
-
-Use this decision model per stream:
-
-- Analytics:
-    - Frequent investigations, dashboards, rich analytics, critical operations.
-- Basic:
-    - Troubleshooting logs queried occasionally.
-- Auxiliary:
-    - Very high-volume, low-touch logs where lowest cost is priority.
-
-Start small: migrate one or two streams first.
-
-### Log Tier Comparison Table
-
-| Tier | Best for | Query behavior | Cost direction | Example stream in this repo |
-|---|---|---|---|---|
-| Analytics | Mission-critical operations, dashboards, frequent investigations | Rich and frequent interactive queries | Highest | AppEvents_CL |
-| Basic | Troubleshooting logs with occasional access | Simple and less frequent investigations | Lower than Analytics | DebugTraces_CL |
-| Auxiliary | Very high-volume, low-touch telemetry | Rare and lightweight exploration | Lowest path when available | AuxSignals_CL pattern |
-
-Simple decision rule:
-
-1. If a stream is opened daily by ops, keep it in Analytics.
-2. If a stream is mostly for occasional troubleshooting, move to Basic.
-3. If a stream is high-volume and rarely touched, use Auxiliary path.
-
-## DCR Rules Made Simple
-
-Think of DCR rules as: Keep, Shape, Route.
-
-1. Keep only useful events (for example Warning/Error/Critical).
-2. Shape data by dropping large low-value columns.
-3. Route streams to the right table tier.
-
-Practical patterns in this repo:
-
-- Actionable events to Analytics: AppEvents_CL
-- Troubleshooting traces to Basic: DebugTraces_CL
-- Low-touch stream to Auxiliary-ready path: AuxSignals_CL
-
-Reference implementation: [modules/dcr.bicep](modules/dcr.bicep)
-
-## Safe Rollout Pattern
-
-1. Pilot DCR + tiering for one app/team.
-2. Keep original flow during pilot.
-3. Compare before/after ingestion, alert quality, and query usability.
-4. Promote successful rules to shared baseline.
-5. Expand by app-team waves.
-
-Avoid these mistakes:
-
-- Moving critical logs to low-cost tiers too early.
-- Dropping columns without checking alerts/workbooks.
-- Changing too many streams at once.
-
-## Commitment Tier, Retention, and Export
-
-Simple guidance:
+Use this order:
 
 1. Optimize DCR and tiering first.
-2. Then evaluate commitment tier using stable post-optimization usage.
-3. Use retention by data value class.
-4. Export long-term data to storage with lifecycle policies.
+2. Collect 2-4 weeks of stable post-change usage.
+3. Evaluate commitment tier based on steady usage.
+4. Set retention by data value.
+5. Export long-term data when needed.
 
-### Commitment Tier Playbook
+Practical governance cadence:
 
-1. Collect at least 2-4 weeks of post-optimization ingestion data.
-2. Calculate p50 and p95 daily ingestion GB.
-3. Choose a commitment tier close to steady-state usage, not peak incident days.
-4. Re-check after major onboarding of new apps or big DCR rule changes.
+1. Weekly: top billable tables and noisy streams.
+2. Monthly: tier fit, retention fit, commitment right-sizing.
+3. After each change: rerun validation.
 
-Do not choose commitment tier before DCR filtering and table tiering stabilize.
+## Auxiliary Table Note
 
-### Additional FinOps Practices
+Some tenants or regions may not allow Auxiliary table creation through ARM in this flow.
 
-1. Weekly cost review:
-    - Top 10 billable tables
-    - New noisy streams
-    - Query usage pattern shifts
-2. Monthly governance review:
-    - Retention by data class
-    - Table tier fit (Analytics vs Basic vs Auxiliary)
-    - Commitment tier right-sizing
-3. Change safety:
-    - Pilot first, then wave rollout
-    - Keep rollback path for DCR changes
-    - Validate with [run-demo-checks.ps1](run-demo-checks.ps1) after each wave
+In that case, the demo uses an Auxiliary-ready fallback path on Basic so the architecture still works.
 
-Template references:
-
-- [main.bicep](main.bicep)
-- [modules/storage.bicep](modules/storage.bicep)
-
-## What Gets Deployed In This Repo
-
-- Log Analytics workspace (pricing, cap, retention)
-- DCE + DCR with transformations
-- Analytics + Basic + Auxiliary-ready stream path
-- Storage export with lifecycle management
-- Alert guardrails
-- Optional real sources (Linux VM, Windows VM, Key Vault, Storage diagnostics)
-
-## Verify Outcomes
-
-Use these files:
-
-- Validation script: [run-demo-checks.ps1](run-demo-checks.ps1)
-- Demo visuals: [queries/demo-visuals.kql](queries/demo-visuals.kql)
-- Cost analysis: [queries/cost-analysis.kql](queries/cost-analysis.kql)
-
-Tip: If first validation returns zeros, wait a few minutes and rerun.
-
-## Auxiliary Note
-
-Some environments may restrict creating new Auxiliary tables via ARM.
-
-- This repo falls back to an Auxiliary-ready path so the FinOps model still works.
-- If an Auxiliary table already exists, deployment can reuse it.
-
-### Enable Auxiliary Manually (Portal)
-
-If your deployment falls back to Basic for `AuxSignals_CL`, use this quick portal flow:
+### Create Auxiliary Manually in Portal
 
 1. Open Azure Portal -> Log Analytics workspace -> Tables.
 2. Create a custom log table (DCR-based).
 3. Set table plan to Auxiliary.
-4. Use table name `AuxPortal_CL` (or your own naming standard).
-5. Re-run deployment and point routing to that table:
+4. Example name: `AuxPortal_CL`.
+5. Re-run deployment and route to that table:
 
 ```powershell
 .\deploy.ps1 -ResourceGroupName "<existing-rg>" -Location "germanywestcentral" -AuxTableOverrideName "AuxPortal_CL" -DeployRealVmSource $false -DeployRealWindowsVmSource $false -DeployRealPaaSSources $false
@@ -184,9 +114,20 @@ If your deployment falls back to Basic for `AuxSignals_CL`, use this quick porta
 az monitor log-analytics workspace table show -g "<existing-rg>" --workspace-name "<workspace-name>" -n AuxPortal_CL --query "{name:name,plan:plan}" -o table
 ```
 
-Expected result: `plan` shows `Auxiliary`.
+Expected result: `plan` is `Auxiliary`.
 
-## Full Deployment Option
+## Useful Files
+
+1. Deployment script: [deploy.ps1](deploy.ps1)
+2. Quick deployment: [quick-deploy.ps1](quick-deploy.ps1)
+3. Data generator: [send-sample-data.ps1](send-sample-data.ps1)
+4. Validation script: [run-demo-checks.ps1](run-demo-checks.ps1)
+5. Cost query pack: [queries/cost-analysis.kql](queries/cost-analysis.kql)
+6. Demo visuals: [queries/demo-visuals.kql](queries/demo-visuals.kql)
+7. DCR module: [modules/dcr.bicep](modules/dcr.bicep)
+8. Table module: [modules/tables.bicep](modules/tables.bicep)
+
+## Full Deployment (Optional)
 
 ```powershell
 .\deploy.ps1 -ResourceGroupName "rg-lawopt-demo" -Location "germanywestcentral"
@@ -201,17 +142,21 @@ Expected result: `plan` shows `Auxiliary`.
 .\cleanup-demo.ps1 -Force
 ```
 
-## Microsoft Learn
+## Microsoft Learn References
 
-- Azure Monitor Logs cost best practices:
-    - https://learn.microsoft.com/azure/azure-monitor/logs/best-practices-logs#cost-optimization
-- Azure Monitor cost optimization:
-    - https://learn.microsoft.com/azure/azure-monitor/fundamentals/best-practices-cost#azure-monitor-logs
-- Log Analytics table plans:
-    - https://learn.microsoft.com/azure/azure-monitor/logs/data-platform-logs#table-plans
-- Basic Logs configuration:
-    - https://learn.microsoft.com/azure/azure-monitor/logs/basic-logs-configure
-- Auxiliary custom table:
-    - https://learn.microsoft.com/azure/azure-monitor/logs/create-custom-table-auxiliary
-- DCR transformations and cost:
-    - https://learn.microsoft.com/azure/azure-monitor/data-collection/data-collection-transformations#cost-for-transformations
+1. Azure Monitor Logs cost best practices:
+   https://learn.microsoft.com/azure/azure-monitor/logs/best-practices-logs#cost-optimization
+2. Cost optimization in Azure Monitor:
+   https://learn.microsoft.com/azure/azure-monitor/fundamentals/best-practices-cost
+3. Azure Monitor cost and usage:
+   https://learn.microsoft.com/azure/azure-monitor/fundamentals/cost-usage
+4. Logs cost calculations and options:
+   https://learn.microsoft.com/azure/azure-monitor/logs/cost-logs
+5. Log Analytics table plans:
+   https://learn.microsoft.com/azure/azure-monitor/logs/data-platform-logs#table-plans
+6. Basic Logs configuration:
+   https://learn.microsoft.com/azure/azure-monitor/logs/basic-logs-configure
+7. Auxiliary custom table:
+   https://learn.microsoft.com/azure/azure-monitor/logs/create-custom-table-auxiliary
+8. DCR transformations and cost:
+   https://learn.microsoft.com/azure/azure-monitor/data-collection/data-collection-transformations#cost-for-transformations
